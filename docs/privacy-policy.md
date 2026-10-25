@@ -1,6 +1,6 @@
 # Merge Rush — Privacy Policy
 
-_Last updated: October 25, 2026_
+_Last updated: October 26, 2026_
 
 Merge Rush ("the game", "we") is a single-player puzzle game published by
 Mahesh Maddi. This policy explains what data the game handles.
@@ -8,12 +8,29 @@ Mahesh Maddi. This policy explains what data the game handles.
 ## Data the game itself stores
 
 The game saves your progress on your own device only: the current board,
-scores, best score, settings (sound on/off) and a count of games played and
-ads shown (used to space ads out). This data never leaves your device, is not
+scores, best score, settings (sound, music, vibration), your daily streak,
+missions, level and achievements, and a count of games played and ads shown
+(used to space ads out). This data never leaves your device, is not
 sent to us, and is deleted when you uninstall the game or clear its data.
 
 We do not ask for your name, email, location, contacts or any account. We
-have no servers and do not collect analytics.
+have no servers and do not collect analytics. If you choose to use the
+leaderboards (below), your score is sent to Google as described there.
+
+## Leaderboards (Google Play Games Services)
+
+The Android app can show global leaderboards through Google Play Games
+Services. When you open the game, it may sign you in to Play Games
+automatically with the Google account on your device. After a game ends, your
+score is submitted to Google's leaderboards, where it is shown with your Play
+Games profile name and avatar to other players. Google collects and processes
+this data (including your Play Games player ID) under Google's privacy policy:
+https://policies.google.com/privacy. We do not receive this data and do not run
+any server of our own.
+
+- You can decline or sign out of Play Games in the Google Play Games app or
+  Android Settings; the game works fully without it.
+- You can manage or delete your Play Games data through your Google account.
 
 ## Advertising (Google AdMob)
 
