@@ -15,7 +15,7 @@
 
 .energy {
   display: grid;
-  grid-template-columns: auto 1fr auto;
+  grid-template-columns: auto 1fr auto auto;
   align-items: center;
   gap: 10px;
 }
@@ -257,4 +257,24 @@
   .power__name {
     font-size: 11px;
   }
+}
+
+/* Rescue hearts: powers fired on a stuck board, MAX_RESCUES per game. */
+.rescues {
+  display: inline-flex;
+  gap: 3px;
+  padding-left: 8px;
+  border-left: 1px solid var(--line);
+}
+
+.heart {
+  width: 15px;
+  height: 15px;
+  fill: rgba(163, 170, 214, 0.22);
+  transition: fill 300ms ease, transform 300ms ease;
+}
+
+.heart--on {
+  fill: #ff5c8a;
+  filter: drop-shadow(0 0 5px rgba(255, 92, 138, 0.7));
 }

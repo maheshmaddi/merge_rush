@@ -13,6 +13,7 @@ import type { EngineState, GameState, GamePrefs, GameStats, PowerState, RushStat
 import {
   BOARD_SIZE,
   ENERGY_COST_MAX,
+  MAX_RESCUES,
   POWER_IDS,
   POWER_MAX_CHARGES,
   SAVE_KEY,
@@ -36,6 +37,9 @@ export interface SerializedGame {
   celebratedRecord: boolean;
   /** Added after v1 shipped; older saves without it get starting charges. */
   powers?: PowerState;
+  /** Added with the rescue limit; older saves default to 0. */
+  rescuesUsed?: number;
+  powerBonus?: number;
 }
 
 export interface SaveData {
@@ -139,6 +143,10 @@ function validateGameState(value: unknown): SerializedGame | null {
   if (typeof value.canUndo !== 'boolean') return null;
   if (typeof value.celebratedRecord !== 'boolean') return null;
   if (value.powers !== undefined && !validatePowers(value.powers)) return null;
+  if (value.rescuesUsed !== undefined && !isIntegerInRange(value.rescuesUsed, 0, MAX_RESCUES)) return null;
+  if (value.powerBonus !== undefined && !isIntegerInRange(value.powerBonus, 0, Number.MAX_SAFE_INTEGER)) {
+    return null;
+  }
 
   const maxTileId = (value.tiles as Tile[]).reduce((max, tile) => Math.max(max, tile.id), 0);
   if (value.nextTileId <= maxTileId) return null;
@@ -199,9 +207,13 @@ function toGameState(saved: SerializedGame): GameState {
           gameOver: snapshot.gameOver,
           celebratedRecord: snapshot.celebratedRecord,
           powers: snapshot.powers ? withEarned(snapshot.powers) : startingPowers(),
+          rescuesUsed: snapshot.rescuesUsed ?? 0,
+          powerBonus: snapshot.powerBonus ?? 0,
         }
       : null,
     powers: saved.powers ? withEarned(saved.powers) : startingPowers(),
+    rescuesUsed: saved.rescuesUsed ?? 0,
+    powerBonus: saved.powerBonus ?? 0,
     celebratedRecord: saved.celebratedRecord,
     lastMove: null,
   };
@@ -233,6 +245,8 @@ export function serializeEngineState(state: EngineState): SaveData {
           gameOver: game.undoSnapshot.gameOver,
           celebratedRecord: game.undoSnapshot.celebratedRecord,
           powers: game.undoSnapshot.powers,
+          rescuesUsed: game.undoSnapshot.rescuesUsed,
+          powerBonus: game.undoSnapshot.powerBonus,
           // Snapshots only exist while undo is still available; the field is
           // required by the save validator but unused when restoring.
           canUndo: true,
@@ -240,6 +254,8 @@ export function serializeEngineState(state: EngineState): SaveData {
       : null,
     celebratedRecord: game.celebratedRecord,
     powers: game.powers,
+    rescuesUsed: game.rescuesUsed,
+    powerBonus: game.powerBonus,
   });
 
   return {

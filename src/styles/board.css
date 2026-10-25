@@ -699,6 +699,13 @@
   filter: drop-shadow(0 4px 0 rgba(0, 40, 60, 0.6)) drop-shadow(0 0 22px rgba(56, 225, 255, 0.85));
 }
 
+.banner--rescue .banner__title {
+  background: linear-gradient(180deg, #ffffff 0%, #ffb3c8 55%, #ff5c8a 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 4px 0 rgba(70, 10, 30, 0.6)) drop-shadow(0 0 22px rgba(255, 92, 138, 0.85));
+}
+
 .banner--record .banner__title {
   background: linear-gradient(180deg, #ffffff 0%, #ffd34d 60%, #ff6b8b 100%);
   -webkit-background-clip: text;

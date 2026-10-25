@@ -43,6 +43,8 @@ function makeEngine(
     celebratedRecord: false,
     lastMove: null,
     powers: emptyPowers(),
+    rescuesUsed: 0,
+    powerBonus: 0,
     ...gameOverrides,
   };
   return {

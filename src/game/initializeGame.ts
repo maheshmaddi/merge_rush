@@ -44,6 +44,8 @@ export function createNewGame(seed?: number): GameState {
     canUndo: true,
     undoSnapshot: null,
     powers: startingPowers(),
+    rescuesUsed: 0,
+    powerBonus: 0,
     celebratedRecord: false,
     lastMove: null,
   };
