@@ -25,11 +25,20 @@ import { TitleScreen } from './screens/TitleScreen';
 import { HowToPlay } from './screens/HowToPlay';
 import { SettingsSheet } from './screens/SettingsSheet';
 import { PauseSheet } from './screens/PauseSheet';
+import { Sheet as DialogSheet } from './screens/Sheet';
 import { useSettings } from './hooks/useSettings';
+import { useProgress } from './hooks/useProgress';
+import { ProgressSheet } from './screens/ProgressSheet';
+import { Toasts } from './components/Toasts';
+import { Milestone } from './components/Milestone';
+import { LeaderboardSheet } from './screens/LeaderboardSheet';
+import { leaderboards } from './social/leaderboard';
+import { PLAY_STORE_URL, shareScore } from './share/share';
+import { dailySeed, dateKey, visibleStreak } from './daily/daily';
 import pkg from '../package.json';
 
 type Screen = 'title' | 'game';
-type Sheet = 'howto' | 'settings' | 'pause' | null;
+type Sheet = 'howto' | 'settings' | 'pause' | 'progress' | 'leaderboard' | null;
 
 interface AppProps {
   /** Test hook: stage a deterministic starting state. */
@@ -123,11 +132,21 @@ export default function App({ initialState }: AppProps) {
   }, []);
 
   const { game, stats, prefs } = state;
+  const progressApi = useProgress(game, stats, initialState === undefined);
+  const { progress } = progressApi;
+  const today = dateKey(new Date());
+
+  /** A normal (non-daily) game: clears the daily flag and spends a streak reward. */
+  const restartNormal = useCallback(() => {
+    progressApi.setActiveDaily(false);
+    restart({ bonus: progressApi.consumeBonus() ?? undefined });
+  }, [progressApi, restart]);
+
   const ads = useAdFlows({
     game,
     revive,
     declineRevive,
-    restart,
+    restart: restartNormal,
   });
 
   // Full music on the title, a soft bed while playing.
@@ -145,18 +164,71 @@ export default function App({ initialState }: AppProps) {
     if (!settings.tutorialSeen) setSheet('howto');
   };
   const newGameFromMenu = () => {
-    restart();
+    restartNormal();
     play();
   };
+  const startDaily = () => {
+    // A daily already under way just continues; otherwise (re)start today's board.
+    if (!(progress.activeDaily === today && hasGame)) {
+      progressApi.setActiveDaily(true);
+      restart({ seed: dailySeed(today) });
+    }
+    play();
+  };
+  const dailyActive = progress.activeDaily === today;
+
+  // Leaderboards exist only on Android with Play Games configured.
+  const [boardsOn, setBoardsOn] = useState(false);
+  useEffect(() => {
+    let cancelled = false;
+    void leaderboards.isAvailable().then((ok) => {
+      if (!cancelled) setBoardsOn(ok);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  // Post the final score once per finished game.
+  const postedRef = useRef(false);
+  useEffect(() => {
+    if (!game.gameOver) {
+      postedRef.current = false;
+      return;
+    }
+    if (postedRef.current || initialState !== undefined) return;
+    postedRef.current = true;
+    void leaderboards.submit('allTime', game.score);
+    if (dailyActive) void leaderboards.submit('daily', game.score);
+  }, [game.gameOver, game.score, dailyActive, initialState]);
+  const [shareNote, setShareNote] = useState('');
+  const onShare = () => {
+    void shareScore({
+      score: game.score,
+      highestTile: stats.highestTile,
+      streak: visibleStreak(progress, today),
+      daily: dailyActive,
+    }).then((outcome) => {
+      setShareNote(
+        outcome === 'copied'
+          ? 'Copied to clipboard!'
+          : outcome === 'failed'
+            ? 'Could not share'
+            : '',
+      );
+    });
+  };
+
   const canUndo = game.canUndo && game.undoSnapshot !== null;
   const beatBest = stats.best > 0 && game.score >= stats.best && game.celebratedRecord;
+  // Ask for a rating once, after a strong finish and a few games played.
+  const askRate = game.gameOver && !progress.rateAsked && progress.gamesFinished >= 5 && beatBest;
   const stuck = !game.gameOver && !game.lastChance && !hasAnyMoves(game.board);
   const rescues = rescuesLeft(game.rescuesUsed, game.reviveUsed);
 
   return (
     <>
       {screen === 'title' && (
-        <div className="app app--title">
+        <div className="app app--title" data-theme={progress.theme}>
           <Backdrop rush={false} />
           <TitleScreen
             best={stats.best}
@@ -165,10 +237,17 @@ export default function App({ initialState }: AppProps) {
             onNewGame={newGameFromMenu}
             onHowTo={() => setSheet('howto')}
             onSettings={() => setSheet('settings')}
+            onProgress={() => setSheet('progress')}
+            onDaily={startDaily}
+            onLeaderboard={boardsOn ? () => setSheet('leaderboard') : undefined}
+            streak={visibleStreak(progress, today)}
+            dailyBest={progress.dailyDate === today ? progress.dailyBest : 0}
+            level={progressApi.level}
           />
         </div>
       )}
       <div
+        data-theme={progress.theme}
         className={`app${reducedMotion ? ' app--reduced' : ''}`}
         style={screen === 'title' ? { display: 'none' } : undefined}
       >
@@ -181,6 +260,11 @@ export default function App({ initialState }: AppProps) {
         />
 
         <main className="app__main">
+          {dailyActive && (
+            <p className="daily-pill" role="status">
+              📅 Daily Challenge · {today}
+            </p>
+          )}
           <ScoreBoard
             score={game.score}
             best={stats.best}
@@ -196,6 +280,7 @@ export default function App({ initialState }: AppProps) {
               onTileClick={pickTile}
               lite={lite}
             />
+            <Milestone game={game} lite={lite} reducedMotion={reducedMotion} />
             <Banner
               lastMove={game.lastMove}
               rescuesUsed={game.rescuesUsed}
@@ -228,6 +313,14 @@ export default function App({ initialState }: AppProps) {
                 isNewBest={beatBest}
                 powerBonus={game.powerBonus}
                 onPlayAgain={ads.startNextGame}
+                onShare={onShare}
+                note={
+                  shareNote !== ''
+                    ? shareNote
+                    : dailyActive
+                      ? `Daily Challenge · today's best ${progress.dailyDate === today ? progress.dailyBest.toLocaleString() : game.score}`
+                      : undefined
+                }
               />
             )}
           </div>
@@ -246,6 +339,37 @@ export default function App({ initialState }: AppProps) {
           {game.lastMove?.score.total ? `${game.lastMove.score.total} points.` : ''}
         </p>
       </div>
+      {sheet === 'progress' && (
+        <ProgressSheet
+          progress={progress}
+          today={today}
+          onTheme={progressApi.setTheme}
+          onClose={() => setSheet(null)}
+        />
+      )}
+      {sheet === 'leaderboard' && <LeaderboardSheet onClose={() => setSheet(null)} />}
+      <Toasts toasts={progressApi.toasts} onDismiss={progressApi.dismissToast} />
+      {askRate && sheet === null && (
+        <DialogSheet title="Enjoying Merge Rush?" onClose={progressApi.markRateAsked}>
+          <p className="howto__text">
+            A quick rating helps other players find the game. Thank you!
+          </p>
+          <div className="sheet__actions">
+            <button type="button" className="btn" onClick={progressApi.markRateAsked}>
+              Not now
+            </button>
+            <a
+              className="btn btn--primary"
+              href={PLAY_STORE_URL}
+              target="_blank"
+              rel="noopener noreferrer"
+              onClick={progressApi.markRateAsked}
+            >
+              Rate ★
+            </a>
+          </div>
+        </DialogSheet>
+      )}
       {sheet === 'howto' && <HowToPlay onClose={closeHowTo} />}
       {sheet === 'settings' && (
         <SettingsSheet

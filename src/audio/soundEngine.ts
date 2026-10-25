@@ -24,7 +24,8 @@ export type SoundName =
   | 'sweep'
   | 'powerEarned'
   | 'select'
-  | 'revive';
+  | 'revive'
+  | 'milestone';
 
 interface ToneSpec {
   freq: number;
@@ -740,6 +741,16 @@ class SoundEngine {
             this.bell(f, i * 0.08, 0.5, 0.16);
           });
           break;
+        case 'milestone': {
+          // Rising fanfare; higher tiles climb further up the scale.
+          const lift = Math.min(4, Math.max(0, Math.round(Math.log2((opts?.value ?? 512) / 512))));
+          [0, 2, 4, 5, 7].forEach((step, i) => {
+            this.bell(scaleNote(5 + lift + step), i * 0.09, 0.7, 0.2);
+          });
+          this.noise({ at: 0, duration: 0.6, peak: 0.1, filter: 'bandpass', from: 600, to: 6000, q: 1.2, wet: 0.3 });
+          this.tone({ freq: 98, at: 0, duration: 0.8, type: 'sine', peak: 0.3, slideTo: 49, wet: 0.2 });
+          break;
+        }
         case 'record':
           // Short fanfare.
           [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {

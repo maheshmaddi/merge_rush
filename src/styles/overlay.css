@@ -222,7 +222,7 @@
   -webkit-background-clip: text;
   background-clip: text;
   color: transparent;
-  padding-right: 8px;
+  padding: 0 8px 10px 0;
   filter: drop-shadow(0 4px 18px rgba(139, 92, 246, 0.6));
 }
 

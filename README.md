@@ -320,3 +320,10 @@ The game is tuned to hold 60 fps on low-end Android devices:
   borderline devices may start in full mode and downgrade a few seconds in.
 - The game targets modern evergreen browsers (flex/grid, CSS custom
   properties, Pointer Events, ES2020).
+
+## Daily challenge, progress and leaderboards
+
+- **Daily Challenge**: one board per calendar day, seeded from the date (`src/daily/daily.ts`). Reaching 300 points counts the day toward the streak; streak rewards (3/7/14/21/28 days) give a free starting power, and a streak freeze is earned every 7 days.
+- **Progress** (`src/progress/`): 3 missions a day, XP and levels, 13 achievements, and tile themes unlocked by level. Stored separately from the game save under `merge-rush.progress.v1`.
+- **Share**: the game-over panel shares score text through the Android share sheet (`@capacitor/share`).
+- **Leaderboards** (Google Play Games Services) are built but switched off. To enable: create the Play Games project and two leaderboards in Play Console, set `PGS_APP_ID` in `android/gradle.properties`, set `VITE_PGS_ALL_TIME_ID` and `VITE_PGS_DAILY_ID` in `.env.production`, rebuild. See `src/social/leaderboard.ts` and `android/.../PlayGamesPlugin.java`.

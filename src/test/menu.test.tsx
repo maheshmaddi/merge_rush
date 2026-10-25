@@ -77,6 +77,50 @@ describe('title screen and menus', () => {
   });
 });
 
+describe('daily challenge and progress', () => {
+  beforeEach(() => {
+    window.localStorage.setItem(
+      SETTINGS_KEY,
+      JSON.stringify({ ...DEFAULT_SETTINGS, tutorialSeen: true }),
+    );
+  });
+
+  it('starts the daily from the title and marks the game as a daily', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /daily challenge/i }));
+    expect(screen.getByText(/Daily Challenge ·/)).toBeInTheDocument();
+    expect(
+      JSON.parse(window.localStorage.getItem('merge-rush.progress.v1') as string).activeDaily,
+    ).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  });
+
+  it('shows the same daily board on every start', () => {
+    const boardOf = () => document.querySelectorAll('.tile').length;
+    const { unmount } = render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /daily challenge/i }));
+    const first = boardOf();
+    unmount();
+    window.localStorage.clear();
+    window.localStorage.setItem(
+      SETTINGS_KEY,
+      JSON.stringify({ ...DEFAULT_SETTINGS, tutorialSeen: true }),
+    );
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /daily challenge/i }));
+    expect(boardOf()).toBe(first);
+  });
+
+  it('opens the progress sheet with missions, themes and achievements', () => {
+    render(<App />);
+    fireEvent.click(screen.getByRole('button', { name: /^progress$/i }));
+    const sheet = screen.getByRole('dialog', { name: /progress/i });
+    expect(sheet).toBeInTheDocument();
+    expect(screen.getByRole('region', { name: /achievements/i })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /neon/i })).toHaveAttribute('aria-pressed', 'true');
+    expect(screen.getByRole('button', { name: /candy/i })).toBeDisabled();
+  });
+});
+
 describe('settings storage', () => {
   it('falls back to defaults for missing or corrupt data', () => {
     const storage = createSafeStorage(window.localStorage);

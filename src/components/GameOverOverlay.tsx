@@ -7,6 +7,9 @@ interface GameOverOverlayProps {
   /** Points from unspent charges, cashed in when the game ended. */
   powerBonus: number;
   onPlayAgain: () => void;
+  onShare?: () => void;
+  /** Extra line, e.g. the daily-challenge result. */
+  note?: string;
 }
 
 export function GameOverOverlay({
@@ -15,6 +18,8 @@ export function GameOverOverlay({
   isNewBest,
   powerBonus,
   onPlayAgain,
+  onShare,
+  note,
 }: GameOverOverlayProps) {
   // Charges left over means the game ended on the rescue limit, not on an
   // empty power bar.
@@ -37,9 +42,15 @@ export function GameOverOverlay({
         <p className="overlay__best">
           {isNewBest ? 'New best score!' : `Best: ${best}`}
         </p>
+        {note !== undefined && <p className="overlay__note">{note}</p>}
         <button type="button" className="btn btn--primary" onClick={onPlayAgain} autoFocus>
           Play Again
         </button>
+        {onShare !== undefined && (
+          <button type="button" className="btn" onClick={onShare}>
+            Share score
+          </button>
+        )}
       </div>
     </div>
   );

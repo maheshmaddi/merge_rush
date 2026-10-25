@@ -45,7 +45,7 @@ export type GameAction =
   | { type: 'revive' }
   | { type: 'declineRevive' }
   | { type: 'undo' }
-  | { type: 'restart'; seed?: number }
+  | { type: 'restart'; seed?: number; bonus?: PowerId }
   | { type: 'toggleSound' }
   | { type: 'hydrate'; state: EngineState };
 
@@ -341,9 +341,22 @@ function applyDeclineRevive(state: EngineState): EngineState {
   };
 }
 
-function applyRestart(state: EngineState, seed?: number): EngineState {
+function applyRestart(state: EngineState, seed?: number, bonus?: PowerId): EngineState {
+  const game = createNewGame(seed);
   return {
-    game: createNewGame(seed),
+    game:
+      bonus === undefined
+        ? game
+        : {
+            ...game,
+            powers: {
+              ...game.powers,
+              charges: {
+                ...game.powers.charges,
+                [bonus]: Math.min(POWER_MAX_CHARGES, game.powers.charges[bonus] + 1),
+              },
+            },
+          },
     stats: {
       ...state.stats,
       gamesPlayed: state.stats.gamesPlayed + 1,
@@ -365,7 +378,7 @@ export function gameReducer(state: EngineState, action: GameAction): EngineState
     case 'undo':
       return applyUndo(state);
     case 'restart':
-      return applyRestart(state, action.seed);
+      return applyRestart(state, action.seed, action.bonus);
     case 'toggleSound':
       return { ...state, prefs: { ...state.prefs, soundOn: !state.prefs.soundOn } };
     case 'hydrate':

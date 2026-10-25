@@ -28,7 +28,8 @@ export interface GameEngineApi {
   move: (direction: Direction) => void;
   undo: () => void;
   firePower: (power: PowerId, cell?: number) => void;
-  restart: () => void;
+  /** Start a fresh game; `seed` fixes the board (daily), `bonus` adds a starting charge. */
+  restart: (options?: { seed?: number; bonus?: PowerId }) => void;
   /** Answer a last-chance revive offer. */
   revive: () => void;
   declineRevive: () => void;
@@ -104,8 +105,8 @@ export function useGameEngine(initialState?: EngineState): GameEngineApi {
     dispatch({ type: 'power', power, cell });
   }, []);
 
-  const restart = useCallback(() => {
-    dispatch({ type: 'restart' });
+  const restart = useCallback((options?: { seed?: number; bonus?: PowerId }) => {
+    dispatch({ type: 'restart', seed: options?.seed, bonus: options?.bonus });
   }, []);
 
   const revive = useCallback(() => {
