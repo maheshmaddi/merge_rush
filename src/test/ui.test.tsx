@@ -61,6 +61,8 @@ function stagedEngine(
       powers: emptyPowers(),
       rescuesUsed: 0,
       powerBonus: 0,
+      lastChance: false,
+      reviveUsed: false,
       ...gameOverrides,
     },
     stats: { best: 0, highestTile: 0, gamesPlayed: 1, ...statsOverrides },
@@ -295,6 +297,7 @@ describe('UI: game over', () => {
 describe('UI: sound toggle and persistence', () => {
   it('flips the sound state and persists the preference', async () => {
     render(<App />); // no initialState: storage-backed
+    fireEvent.click(screen.getByRole('button', { name: /^play$/i }));
 
     const muteButton = screen.getByRole('button', { name: /mute game sounds/i });
     fireEvent.click(muteButton);

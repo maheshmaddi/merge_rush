@@ -27,6 +27,8 @@ const GAMES = Number(process.argv[2] ?? 300);
 const MOVE_CAP = 20_000;
 /** --hoard: never spend powers proactively, only as rescues (worst case for game length). */
 const HOARD = process.argv.includes('--hoard');
+/** --ads: the player always watches the revive ad; otherwise they decline it. */
+const WATCH_ADS = process.argv.includes('--ads');
 const PRIORITY: Direction[] = ['down', 'left', 'right', 'up'];
 
 function bestDirection(state: EngineState): Direction | null {
@@ -57,35 +59,12 @@ function bombTarget(state: EngineState): number | null {
   return best;
 }
 
-/** A tile whose doubled value matches a neighbour, creating a merge. */
-function upgradeTarget(state: EngineState): number | null {
-  const board = state.game.board;
-  for (let i = 0; i < board.length; i++) {
-    if (board[i] === 0) continue;
-    const r = Math.floor(i / BOARD_SIZE);
-    const c = i % BOARD_SIZE;
-    const neighbours = [
-      r > 0 ? board[i - BOARD_SIZE] : 0,
-      r < BOARD_SIZE - 1 ? board[i + BOARD_SIZE] : 0,
-      c > 0 ? board[i - 1] : 0,
-      c < BOARD_SIZE - 1 ? board[i + 1] : 0,
-    ];
-    if (neighbours.includes(board[i] * 2)) return i;
-  }
-  return null;
-}
-
 function firePower(state: EngineState, power: PowerId, rescue: boolean): EngineState | null {
   const game = state.game;
   if (!canUsePower(game, power)) return null;
   let cell: number | undefined;
   if (power === 'bomb') cell = bombTarget(state) ?? undefined;
-  if (power === 'upgrade') {
-    cell = upgradeTarget(state) ?? undefined;
-    if (cell === undefined && !rescue) return null;
-    if (cell === undefined) cell = bombTarget(state) ?? undefined;
-  }
-  if ((power === 'bomb' || power === 'upgrade') && cell === undefined) return null;
+  if (power === 'bomb' && cell === undefined) return null;
   const next = gameReducer(state, { type: 'power', power, cell });
   return next === state ? null : next;
 }
@@ -125,12 +104,16 @@ function play(seed: number, powersOn: boolean): GameResult {
   };
 
   while (!state.game.gameOver && result.moves < MOVE_CAP) {
+    if (state.game.lastChance) {
+      state = gameReducer(state, { type: WATCH_ADS ? 'revive' : 'declineRevive' });
+      continue;
+    }
     if (!hasAnyMoves(state.game.board)) {
       if (!powersOn) break;
       if (result.firstStuckMove === null) result.firstStuckMove = result.moves;
       // Stuck: rescue in a fixed preference order.
       let fired: EngineState | null = null;
-      for (const power of ['bomb', 'sweep', 'upgrade', 'shuffle'] as PowerId[]) {
+      for (const power of ['bomb', 'sweep', 'shuffle'] as PowerId[]) {
         fired = firePower(state, power, true);
         if (fired) break;
       }
@@ -220,4 +203,5 @@ function report(label: string, results: GameResult[]) {
 
 const seeds = Array.from({ length: GAMES }, (_, i) => 1000 + i * 7919);
 if (!process.argv.includes('--on-only')) report('powers OFF', seeds.map((s) => play(s, false)));
-report(HOARD ? 'powers ON (hoarding player)' : 'powers ON', seeds.map((s) => play(s, true)));
+const policy = [HOARD ? 'hoarding' : '', WATCH_ADS ? 'watches revive ad' : ''].filter(Boolean).join(', ');
+report(policy ? `powers ON (${policy})` : 'powers ON', seeds.map((s) => play(s, true)));

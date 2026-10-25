@@ -189,9 +189,6 @@
   animation: icon-bob 2.6s ease-in-out infinite;
 }
 
-.power--upgrade.power--ready .power__icon {
-  animation-delay: -0.6s;
-}
 .power--shuffle.power--ready .power__icon {
   animation-delay: -1.2s;
 }
@@ -277,4 +274,10 @@
 .heart--on {
   fill: #ff5c8a;
   filter: drop-shadow(0 0 5px rgba(255, 92, 138, 0.7));
+}
+
+/* The revive's extra rescue. */
+.heart--bonus.heart--on {
+  fill: var(--gold);
+  filter: drop-shadow(0 0 5px rgba(255, 197, 61, 0.7));
 }

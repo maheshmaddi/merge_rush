@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+    <title>Merge Rush</title>
+    <!--
+      Dev-server-only page for Play Store screenshots: stages a game state in
+      localStorage, then boots the real app on this page. Used by
+      scripts/store-assets/render.sh; never part of a build.
+    -->
+    <script>
+      const scenes = {
+        play: {
+          rows: [[2, 4, 8, 16], [0, 32, 64, 4], [2, 128, 256, 0], [0, 8, 512, 1024]],
+          score: 18420, best: 24310, streak: 2,
+          charges: { bomb: 1, upgrade: 1, shuffle: 1, sweep: 0 }, energy: 18, earned: 1,
+        },
+        rush: {
+          rows: [[4, 2, 8, 2], [16, 32, 4, 0], [64, 128, 256, 8], [2048, 1024, 512, 16]],
+          score: 61280, best: 61280, rush: 2,
+          charges: { bomb: 2, upgrade: 1, shuffle: 1, sweep: 1 }, energy: 31, earned: 2,
+        },
+        bomb: {
+          rows: [[2, 8, 4, 2], [4, 16, 32, 8], [8, 64, 128, 4], [16, 256, 512, 2]],
+          score: 9840, best: 24310, key: '1',
+          charges: { bomb: 2, upgrade: 1, shuffle: 0, sweep: 1 }, energy: 7, earned: 1,
+        },
+        big: {
+          rows: [[2, 0, 4, 2], [8, 16, 0, 4], [32, 64, 128, 8], [4096, 2048, 1024, 512]],
+          score: 128640, best: 128640, streak: 1,
+          charges: { bomb: 3, upgrade: 2, shuffle: 1, sweep: 2 }, energy: 44, earned: 4,
+        },
+      };
+      const scene = scenes[new URLSearchParams(location.search).get('s') || 'play'];
+      const board = scene.rows.flat();
+      const tiles = [];
+      board.forEach((value, i) => {
+        if (value) tiles.push({ id: tiles.length + 1, value, row: Math.floor(i / 4), col: i % 4 });
+      });
+      localStorage.clear();
+      localStorage.setItem('merge-rush.save.v1', JSON.stringify({
+        version: 1,
+        game: {
+          board, tiles, score: scene.score, streak: scene.streak || 0,
+          rush: { active: !!scene.rush, remaining: scene.rush || 0 },
+          rngState: 7, pendingValue: 2, nextTileId: tiles.length + 1,
+          gameOver: false, canUndo: true, undoSnapshot: null, celebratedRecord: false,
+          powers: { charges: scene.charges, energy: scene.energy, earned: scene.earned },
+          rescuesUsed: 0, powerBonus: 0, lastChance: false, reviveUsed: false,
+        },
+        stats: { best: scene.best, highestTile: Math.max(...board), gamesPlayed: 12 },
+        prefs: { soundOn: true },
+      }));
+      if (scene.key) {
+        setTimeout(() => window.dispatchEvent(new KeyboardEvent('keydown', { key: scene.key })), 800);
+      }
+    </script>
+  </head>
+  <body>
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>

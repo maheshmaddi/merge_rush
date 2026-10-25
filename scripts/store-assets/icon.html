@@ -1,0 +1,33 @@
+<!doctype html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <!-- 512x512 Play Store icon; same artwork as the Android adaptive icon. -->
+    <style>
+      html, body { margin: 0; width: 512px; height: 512px; overflow: hidden; }
+      body { background: radial-gradient(circle at 50% 40%, #3a2a8c 0%, #141846 55%, #070a1f 100%); }
+      svg { position: absolute; inset: 0; width: 512px; height: 512px; }
+    </style>
+  </head>
+  <body>
+    <svg viewBox="0 0 108 108">
+      <defs>
+        <linearGradient id="a" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b38bff"/><stop offset="1" stop-color="#6d3fe6"/></linearGradient>
+        <linearGradient id="b" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#8ff0ff"/><stop offset="1" stop-color="#0aa5d6"/></linearGradient>
+        <radialGradient id="c" cx="0.5" cy="0.45" r="0.6"><stop offset="0" stop-color="#fff6c2"/><stop offset="1" stop-color="#ffb020"/></radialGradient>
+        <filter id="glow" x="-50%" y="-50%" width="200%" height="200%"><feGaussianBlur stdDeviation="2.4" result="b"/><feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge></filter>
+      </defs>
+      <g transform="translate(13.2 19.8) scale(1.7)" filter="url(#glow)">
+        <g transform="rotate(-8 13.5 23.5)">
+          <path d="M9,13h9a6,6 0 0 1 6,6v9a6,6 0 0 1 -6,6h-9a6,6 0 0 1 -6,-6v-9a6,6 0 0 1 6,-6z" fill="url(#a)"/>
+          <path d="M9,14.5h9a4.5,4.5 0 0 1 4.5,4.5v2.5h-18v-2.5a4.5,4.5 0 0 1 4.5,-4.5z" fill="#fff" opacity="0.33"/>
+        </g>
+        <g transform="rotate(8 34.5 23.5)">
+          <path d="M30,13h9a6,6 0 0 1 6,6v9a6,6 0 0 1 -6,6h-9a6,6 0 0 1 -6,-6v-9a6,6 0 0 1 6,-6z" fill="url(#b)"/>
+          <path d="M30,14.5h9a4.5,4.5 0 0 1 4.5,4.5v2.5h-18v-2.5a4.5,4.5 0 0 1 4.5,-4.5z" fill="#fff" opacity="0.33"/>
+        </g>
+        <path d="M24,13.2l2.8,6.9l7.4,0.5l-5.7,4.7l1.8,7.2l-6.3,-4l-6.3,4l1.8,-7.2l-5.7,-4.7l7.4,-0.5z" fill="url(#c)" stroke="#3a1d00" stroke-width="0.8" stroke-linejoin="round"/>
+      </g>
+    </svg>
+  </body>
+</html>

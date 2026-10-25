@@ -64,7 +64,7 @@ export interface ComboState {
 }
 
 /** Power-ups the player can fire instead of swiping. */
-export type PowerId = 'bomb' | 'upgrade' | 'shuffle' | 'sweep';
+export type PowerId = 'bomb' | 'shuffle' | 'sweep';
 
 /** Charges per power plus the energy meter that earns new charges. */
 export interface PowerState {
@@ -78,7 +78,7 @@ export interface PowerState {
 /** Render hint for a power that was just used. */
 export interface PowerFx {
   id: PowerId;
-  /** Cells the power touched (blast / upgraded / swept cells). */
+  /** Cells the power touched (blasted / swept cells). */
   cells: Array<{ row: number; col: number; value: number }>;
 }
 
@@ -123,6 +123,8 @@ export interface UndoSnapshot {
   powers: PowerState;
   rescuesUsed: number;
   powerBonus: number;
+  lastChance: boolean;
+  reviveUsed: boolean;
 }
 
 /** Per-game mutable state. */
@@ -147,6 +149,14 @@ export interface GameState {
   rescuesUsed: number;
   /** Points awarded at game over for unspent charges; 0 while playing. */
   powerBonus: number;
+  /**
+   * The board is stuck and the game would end, but a revive is still on
+   * offer. Play is paused until the player revives or declines; charges are
+   * only cashed in once they decline.
+   */
+  lastChance: boolean;
+  /** The one revive per game has been used (it raises the rescue limit). */
+  reviveUsed: boolean;
   /** Set once the score has beaten the loaded best score in this game. */
   celebratedRecord: boolean;
   /** Transient render hints; not persisted, null when no move happened yet. */

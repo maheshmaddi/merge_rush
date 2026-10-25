@@ -3,7 +3,9 @@
 A polished, mobile-first number-merging puzzle game inspired by the 2048
 mechanic, with its own identity: chain bonuses, a combo streak, and **Rush
 Mode** for double points. Built with React + TypeScript + Vite. No backend, no
-accounts, no network requests — fully playable offline after the first load.
+accounts, no analytics. The web build makes no network requests and is fully
+playable offline after the first load; the Android app adds Google AdMob ads
+(see [Ads](#ads)) and still plays offline, just without ads.
 
 ## Prerequisites
 
@@ -67,6 +69,32 @@ configured in `android/keystore.properties`. Both are git-ignored. Back them
 up somewhere safe: every future update must be signed with the same key. If
 `keystore.properties` is missing, Gradle produces an unsigned release build.
 
+## Ads
+
+The Android app is free with ads (Google AdMob). Ads are placed where they
+cannot interrupt play:
+
+| Placement | Type | When | Limit |
+| --------- | ---- | ---- | ----- |
+| Continue (revive) | Rewarded, opt-in | The game would end; offered before the final score | Once per game: +1 rescue, +1 Bomb |
+| Between games | Interstitial | Play Again / New game after a finished game | Not in the first 2 games; ≥ 2 ad-free games and ≥ 4 min apart; skipped after games under 60 s or after a rewarded ad |
+
+No banners, no ad on app open, nothing mid-move. If a rewarded ad fails to
+play after the player tapped it, the revive is granted anyway. Game sound
+mutes while an ad plays. EEA/UK players get Google's consent form on first
+launch and a shield button in the header to change it.
+
+Code: `src/ads/` (`adService.ts` for AdMob / dev mock / no-ads,
+`adPolicy.ts` for interstitial spacing, `useAdFlows.ts` for the UI glue).
+In the browser dev server a labelled fake "TEST AD" stands in so the flows can
+be played; the web production build and tests show no ads.
+
+**Ad IDs.** Builds use Google's test ads until you configure real IDs: the
+AdMob app ID in `android/gradle.properties` (`ADMOB_APP_ID`) and the ad unit
+IDs in `.env.production` (template: `.env.example`). Full release steps,
+Data safety answers, privacy policy and app-ads.txt templates:
+[docs/play-store-release.md](docs/play-store-release.md).
+
 ## Testing and checks
 
 ```bash
@@ -124,18 +152,17 @@ npm run typecheck  # tsc --noEmit with strict settings
 ### Power-ups
 
 Four powers can be fired instead of a swipe (buttons under the board, or keys
-1–4; Esc cancels a targeted power):
+1–3; Esc cancels a targeted power):
 
 | Power   | Effect                                                         |
 | ------- | -------------------------------------------------------------- |
 | Bomb    | Tap a tile to destroy it.                                      |
-| Upgrade | Tap a tile to double it.                                       |
 | Shuffle | Scatter every tile to random cells.                            |
-| Sweep   | Clear every tile of the smallest value (a bigger one must remain). |
+| Sweep   | Clear every tile of the smallest value. Only usable when that value is at most a quarter of the biggest tile, so it never removes big tiles. |
 
 Powers never spawn a tile, score points, or touch the combo / Rush state.
 
-**Economy.** A game starts with 1 Bomb and 1 Upgrade; each power holds at most
+**Economy.** A game starts with 1 Bomb; each power holds at most
 3 charges. Every merge adds 1 energy (2 during Rush). The next charge costs
 `min(10 + 20 × chargesEarned, 100)` energy - 10, 30, 50, 70, 90, 100, … - and
 goes to the power you hold fewest of, so Shuffle and Sweep are introduced by
@@ -169,9 +196,15 @@ first at move ~12, then every ~40 moves early and ~75 late.
 ### Game over
 
 The board is stuck when it is full and no two horizontally/vertically adjacent
-tiles are equal. A stuck board ends the game once no charges remain **or**
-all 3 rescues are spent; otherwise it shows how many rescues are left and
-prompts you to fire a power.
+tiles are equal. While charges and rescues remain, a stuck board shows how
+many rescues are left and prompts you to fire a power.
+
+Once neither can save the board, the game pauses on a **last chance**: once
+per game you may revive it (in the app, by watching a rewarded ad) for +1
+rescue (a gold heart) and +1 Bomb, which always frees the board. Declining,
+or reaching another dead end after reviving, ends the game and cashes in any
+unspent charges. Where no ad can play (web build, offline, no fill) the offer
+is skipped and the game ends directly.
 
 ### Undo and restart
 
@@ -286,3 +319,10 @@ The game is tuned to hold 60 fps on low-end Android devices:
   borderline devices may start in full mode and downgrade a few seconds in.
 - The game targets modern evergreen browsers (flex/grid, CSS custom
   properties, Pointer Events, ES2020).
+
+## Daily challenge, progress and leaderboards
+
+- **Daily Challenge**: one board per calendar day, seeded from the date (`src/daily/daily.ts`). Reaching 300 points counts the day toward the streak; streak rewards (3/7/14/21/28 days) give a free starting power, and a streak freeze is earned every 7 days.
+- **Progress** (`src/progress/`): 3 missions a day, XP and levels, 13 achievements, and tile themes unlocked by level. Stored separately from the game save under `merge-rush.progress.v1`.
+- **Share**: the game-over panel shares score text through the Android share sheet (`@capacitor/share`).
+- **Leaderboards** (Google Play Games Services) are built but switched off. To enable: create the Play Games project and two leaderboards in Play Console, set `PGS_APP_ID` in `android/gradle.properties`, set `VITE_PGS_ALL_TIME_ID` and `VITE_PGS_DAILY_ID` in `.env.production`, rebuild. See `src/social/leaderboard.ts` and `android/.../PlayGamesPlugin.java`.

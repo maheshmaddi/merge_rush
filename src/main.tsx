@@ -8,6 +8,7 @@ import './styles/hud.css';
 import './styles/board.css';
 import './styles/overlay.css';
 import './styles/powers.css';
+import './styles/themes.css';
 import './styles/lite.css';
 
 ReactDOM.createRoot(document.getElementById('root')!).render(

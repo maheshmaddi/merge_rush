@@ -6,6 +6,7 @@ import { POWER_META } from './PowerBar';
 interface BannerProps {
   lastMove: LastMoveInfo | null;
   rescuesUsed: number;
+  reviveUsed: boolean;
 }
 
 interface BannerItem {
@@ -18,7 +19,7 @@ interface BannerItem {
 const BANNER_MS = 1300;
 
 /** Big celebratory text that flashes over the board for key moments. */
-export function Banner({ lastMove, rescuesUsed }: BannerProps) {
+export function Banner({ lastMove, rescuesUsed, reviveUsed }: BannerProps) {
   const [item, setItem] = useState<BannerItem | null>(null);
   const lastRef = useRef<LastMoveInfo | null>(lastMove);
 
@@ -27,7 +28,7 @@ export function Banner({ lastMove, rescuesUsed }: BannerProps) {
     lastRef.current = lastMove;
     let next: BannerItem | null = null;
     if (lastMove.rescue) {
-      const left = rescuesLeft(rescuesUsed);
+      const left = rescuesLeft(rescuesUsed, reviveUsed);
       next = {
         key: Date.now(),
         title: 'RESCUED!',
@@ -46,7 +47,7 @@ export function Banner({ lastMove, rescuesUsed }: BannerProps) {
     setItem(next);
     const timer = window.setTimeout(() => setItem(null), BANNER_MS);
     return () => window.clearTimeout(timer);
-  }, [lastMove, rescuesUsed]);
+  }, [lastMove, rescuesUsed, reviveUsed]);
 
   if (item === null) return null;
   return (

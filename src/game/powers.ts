@@ -2,7 +2,6 @@
  * Power-ups. Pure and deterministic like the rest of the engine.
  *
  * - Bomb:    destroy one chosen tile.
- * - Upgrade: double one chosen tile.
  * - Shuffle: scatter every tile to random cells (seeded PRNG).
  * - Sweep:   clear every tile holding the board's smallest value, as long as
  *            at least one bigger tile remains.
@@ -13,7 +12,8 @@
  * more, so powers rescue a run without carrying it.
  *
  * A power fired on a stuck board is a rescue; MAX_RESCUES are allowed per
- * game. The game ends on a stuck board once charges or rescues run out, and
+ * game. When a stuck board runs out of charges or rescues, the game pauses on
+ * a one-time revive offer; once that is declined or spent, the game ends and
  * any unspent charges are cashed in for bonus points.
  */
 
@@ -26,16 +26,17 @@ import {
   ENERGY_COST_STEP,
   LEFTOVER_CHARGE_BONUS,
   MAX_RESCUES,
-  MAX_TILE_VALUE,
+  REVIVE_RESCUES,
   POWER_IDS,
   POWER_MAX_CHARGES,
   POWER_START_CHARGES,
+  SWEEP_MAX_RATIO,
 } from './constants';
 import { hasAnyMoves } from './gameOver';
 import { nextFloat } from './random';
 
 /** Powers that need the player to pick a tile. */
-export const TARGETED_POWERS: ReadonlySet<PowerId> = new Set<PowerId>(['bomb', 'upgrade']);
+export const TARGETED_POWERS: ReadonlySet<PowerId> = new Set<PowerId>(['bomb']);
 
 export function startingPowers(): PowerState {
   return {
@@ -46,7 +47,7 @@ export function startingPowers(): PowerState {
 }
 
 export function emptyPowers(): PowerState {
-  return { charges: { bomb: 0, upgrade: 0, shuffle: 0, sweep: 0 }, energy: 0, earned: 0 };
+  return { charges: { bomb: 0, shuffle: 0, sweep: 0 }, energy: 0, earned: 0 };
 }
 
 /** Energy needed for the next charge, given how many were already earned. */
@@ -58,18 +59,31 @@ export function totalCharges(powers: PowerState): number {
   return POWER_IDS.reduce((sum, id) => sum + powers.charges[id], 0);
 }
 
-/** Game over = stuck board with no charges, or with every rescue spent. */
-export function isGameOverWithPowers(
+/** Rescues allowed this game: MAX_RESCUES, plus the revive's extra one. */
+export function rescueLimit(reviveUsed: boolean): number {
+  return MAX_RESCUES + (reviveUsed ? REVIVE_RESCUES : 0);
+}
+
+export function rescuesLeft(rescuesUsed: number, reviveUsed = false): number {
+  return Math.max(0, rescueLimit(reviveUsed) - rescuesUsed);
+}
+
+/**
+ * Where a board leaves the game. A stuck board the player can still rescue
+ * keeps playing; otherwise it offers the one revive, and ends once that is
+ * gone.
+ */
+export type GameStatus = 'playing' | 'lastChance' | 'over';
+
+export function gameStatus(
   board: Board,
   powers: PowerState,
   rescuesUsed: number,
-): boolean {
-  if (hasAnyMoves(board)) return false;
-  return totalCharges(powers) === 0 || rescuesUsed >= MAX_RESCUES;
-}
-
-export function rescuesLeft(rescuesUsed: number): number {
-  return Math.max(0, MAX_RESCUES - rescuesUsed);
+  reviveUsed: boolean,
+): GameStatus {
+  if (hasAnyMoves(board)) return 'playing';
+  if (totalCharges(powers) > 0 && rescuesUsed < rescueLimit(reviveUsed)) return 'playing';
+  return reviveUsed ? 'over' : 'lastChance';
 }
 
 /**
@@ -79,7 +93,7 @@ export function rescuesLeft(rescuesUsed: number): number {
 export function cashOutCharges(powers: PowerState): { powers: PowerState; bonus: number } {
   const bonus = totalCharges(powers) * LEFTOVER_CHARGE_BONUS;
   return {
-    powers: { ...powers, charges: { bomb: 0, upgrade: 0, shuffle: 0, sweep: 0 } },
+    powers: { ...powers, charges: { bomb: 0, shuffle: 0, sweep: 0 } },
     bonus,
   };
 }
@@ -131,21 +145,20 @@ function smallestAndLargest(board: Board): { min: number; max: number } {
 
 /** Whether a power may be fired right now (and on the given cell, if targeted). */
 export function canUsePower(game: GameState, id: PowerId, cell?: number): boolean {
-  if (game.gameOver || game.powers.charges[id] <= 0) return false;
-  if (game.rescuesUsed >= MAX_RESCUES && !hasAnyMoves(game.board)) return false;
+  if (game.gameOver || game.lastChance || game.powers.charges[id] <= 0) return false;
+  if (game.rescuesUsed >= rescueLimit(game.reviveUsed) && !hasAnyMoves(game.board)) return false;
   const tileCount = game.board.filter((value) => value !== 0).length;
   switch (id) {
     case 'bomb':
       if (cell === undefined) return tileCount > 1;
       return tileCount > 1 && game.board[cell] > 0;
-    case 'upgrade':
-      if (cell === undefined) return tileCount > 0;
-      return game.board[cell] > 0 && game.board[cell] * 2 <= MAX_TILE_VALUE;
     case 'shuffle':
       return tileCount > 1;
     case 'sweep': {
       const { min, max } = smallestAndLargest(game.board);
-      return tileCount > 1 && min < max;
+      // Only ever clears the small stuff: the smallest value must be at most a
+      // quarter of the biggest tile, so a late-game board never loses real progress.
+      return tileCount > 1 && min * SWEEP_MAX_RATIO <= max;
     }
   }
 }
@@ -179,13 +192,6 @@ export function applyPowerToBoard(game: GameState, id: PowerId, cell?: number): 
         return false;
       });
       cells.push({ row: Math.floor(target / BOARD_SIZE), col: target % BOARD_SIZE, value: game.board[target] });
-      break;
-    }
-    case 'upgrade': {
-      const target = cell as number;
-      board[target] = game.board[target] * 2;
-      tiles = tiles.map((tile) => (at(tile) === target ? { ...tile, value: board[target] } : tile));
-      cells.push({ row: Math.floor(target / BOARD_SIZE), col: target % BOARD_SIZE, value: board[target] });
       break;
     }
     case 'shuffle': {

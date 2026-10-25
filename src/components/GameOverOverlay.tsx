@@ -1,4 +1,4 @@
-import { LEFTOVER_CHARGE_BONUS, MAX_RESCUES } from '../game/constants';
+import { LEFTOVER_CHARGE_BONUS } from '../game/constants';
 
 interface GameOverOverlayProps {
   score: number;
@@ -6,8 +6,10 @@ interface GameOverOverlayProps {
   isNewBest: boolean;
   /** Points from unspent charges, cashed in when the game ended. */
   powerBonus: number;
-  rescuesUsed: number;
   onPlayAgain: () => void;
+  onShare?: () => void;
+  /** Extra line, e.g. the daily-challenge result. */
+  note?: string;
 }
 
 export function GameOverOverlay({
@@ -15,10 +17,13 @@ export function GameOverOverlay({
   best,
   isNewBest,
   powerBonus,
-  rescuesUsed,
   onPlayAgain,
+  onShare,
+  note,
 }: GameOverOverlayProps) {
-  const outOfRescues = rescuesUsed >= MAX_RESCUES;
+  // Charges left over means the game ended on the rescue limit, not on an
+  // empty power bar.
+  const outOfRescues = powerBonus > 0;
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="gameover-title">
       <div className="overlay__panel">
@@ -37,9 +42,15 @@ export function GameOverOverlay({
         <p className="overlay__best">
           {isNewBest ? 'New best score!' : `Best: ${best}`}
         </p>
+        {note !== undefined && <p className="overlay__note">{note}</p>}
         <button type="button" className="btn btn--primary" onClick={onPlayAgain} autoFocus>
           Play Again
         </button>
+        {onShare !== undefined && (
+          <button type="button" className="btn" onClick={onShare}>
+            Share score
+          </button>
+        )}
       </div>
     </div>
   );

@@ -23,7 +23,7 @@ interface Burst {
   key: string;
   row: number;
   col: number;
-  kind: 'merge' | 'bomb' | 'upgrade' | 'sweep';
+  kind: 'merge' | 'bomb' | 'sweep';
   color: string;
 }
 
@@ -73,7 +73,7 @@ function spray(
 
 /**
  * Decorative particle bursts and shockwaves layered over the board: merge
- * sparks, bomb blasts, upgrade sparkles, sweep flashes, shuffle swirl.
+ * sparks, bomb blasts, sweep flashes, shuffle swirl.
  */
 export function BoardFx({ lastMove, lite = false }: BoardFxProps) {
   const [particles, setParticles] = useState<Particle[]>([]);
@@ -113,8 +113,6 @@ export function BoardFx({ lastMove, lite = false }: BoardFxProps) {
           nextParticles.push(
             ...spray(`${stamp}-p${i}`, cell.row, cell.col, 22, 1.8, ['#ff6b5e', '#ffb347', '#fff2b0', tierColor(cell.value)]),
           );
-        } else if (id === 'upgrade') {
-          nextParticles.push(...spray(`${stamp}-p${i}`, cell.row, cell.col, 16, 1.2, ['#ffe17a', '#fff8d6', '#ffc53d']));
         } else if (id === 'sweep') {
           nextParticles.push(...spray(`${stamp}-p${i}`, cell.row, cell.col, 8, 0.9, ['#d7c2ff', '#b388ff', '#ffffff']));
         }
@@ -124,7 +122,7 @@ export function BoardFx({ lastMove, lite = false }: BoardFxProps) {
             row: cell.row,
             col: cell.col,
             kind: id,
-            color: id === 'bomb' ? '#ff6b5e' : id === 'upgrade' ? '#ffc53d' : '#b388ff',
+            color: id === 'bomb' ? '#ff6b5e' : '#b388ff',
           });
         }
       });

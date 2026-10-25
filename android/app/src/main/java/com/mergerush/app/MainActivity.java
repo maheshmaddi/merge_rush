@@ -9,6 +9,7 @@ public class MainActivity extends BridgeActivity {
     public void onCreate(Bundle savedInstanceState) {
         // Branded launch splash (theme AppTheme.NoActionBarLaunch), then the game.
         SplashScreen.installSplashScreen(this);
+        registerPlugin(PlayGamesPlugin.class);
         super.onCreate(savedInstanceState);
     }
 }

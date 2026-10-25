@@ -1,7 +1,7 @@
 {
   "name": "merge-rush",
   "private": true,
-  "version": "1.0.0",
+  "version": "1.2.1",
   "description": "Merge Rush - a polished, mobile-first number-merging puzzle game with combo scoring and Rush Mode",
   "type": "module",
   "scripts": {
@@ -14,9 +14,11 @@
     "icons": "node scripts/generate-icons.mjs"
   },
   "dependencies": {
+    "@capacitor-community/admob": "^6.2.0",
     "@capacitor/android": "^6.2.2",
     "@capacitor/core": "^6.2.2",
     "@capacitor/haptics": "^6.0.3",
+    "@capacitor/share": "^6.0.3",
     "@capacitor/status-bar": "^6.0.3",
     "react": "^18.3.1",
     "react-dom": "^18.3.1"

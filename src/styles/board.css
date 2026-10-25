@@ -396,10 +396,6 @@
   outline: 2px dashed rgba(255, 140, 120, 0.9);
   outline-offset: 2px;
 }
-.board--targeting-upgrade .tile--pickable {
-  outline: 2px dashed rgba(255, 220, 120, 0.9);
-  outline-offset: 2px;
-}
 
 .board--targeting .tile--pickable:hover {
   z-index: 6;
@@ -563,18 +559,6 @@
     transparent 70%
   );
   animation: flash 420ms ease-out forwards;
-}
-
-.fx__burst--upgrade::after {
-  content: '\2605';
-  position: absolute;
-  inset: 0;
-  display: grid;
-  place-items: center;
-  font-size: calc(var(--cell) * 0.6);
-  color: #fff1a8;
-  text-shadow: 0 0 16px #ffc53d;
-  animation: star-rise 700ms ease-out forwards;
 }
 
 .fx__burst--sweep::after {

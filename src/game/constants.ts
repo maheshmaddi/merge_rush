@@ -22,8 +22,10 @@ export const CHAIN_BONUS_DIVISOR = 4;
 export const UNDOS_PER_GAME = 1;
 
 /** Power-ups: display order, starting/maximum charges, and energy cost. */
-export const POWER_IDS = ['bomb', 'upgrade', 'shuffle', 'sweep'] as const;
-export const POWER_START_CHARGES = { bomb: 1, upgrade: 1, shuffle: 0, sweep: 0 } as const;
+export const POWER_IDS = ['bomb', 'shuffle', 'sweep'] as const;
+/** Sweep needs its smallest tile to be at most 1/this of the biggest tile. */
+export const SWEEP_MAX_RATIO = 4;
+export const POWER_START_CHARGES = { bomb: 1, shuffle: 0, sweep: 0 } as const;
 export const POWER_MAX_CHARGES = 3;
 /**
  * Energy cost of the next charge escalates with every charge earned this
@@ -40,7 +42,14 @@ export const ENERGY_COST_MAX = 100;
  */
 export const MAX_RESCUES = 3;
 export const LEFTOVER_CHARGE_BONUS = 250;
-/** Upgrade never pushes a tile past this value (save-format ceiling). */
+/**
+ * Once per game, a game that would end can be revived (in the app: by
+ * watching a rewarded ad). A revive grants REVIVE_RESCUES extra rescue and
+ * REVIVE_BOMBS Bomb charge, which always frees a stuck board.
+ */
+export const REVIVE_RESCUES = 1;
+export const REVIVE_BOMBS = 1;
+/** No tile may exceed this value (save-format ceiling). */
 export const MAX_TILE_VALUE = 1_048_576;
 
 export const SAVE_VERSION = 1;

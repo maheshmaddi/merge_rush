@@ -46,6 +46,8 @@ export function createNewGame(seed?: number): GameState {
     powers: startingPowers(),
     rescuesUsed: 0,
     powerBonus: 0,
+    lastChance: false,
+    reviveUsed: false,
     celebratedRecord: false,
     lastMove: null,
   };
