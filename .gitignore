@@ -1,0 +1,10 @@
+node_modules
+dist
+dist-tsbuildinfo
+*.tsbuildinfo
+.DS_Store
+*.local
+
+# Agent / editor session state
+.claude/
+.zcode/

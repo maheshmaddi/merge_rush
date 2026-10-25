@@ -1,0 +1,61 @@
+/* Lite render mode for low-end devices (class `mr-lite` on <html>, set by
+   useLiteMode). Removes every always-on animation and every glass blur, and
+   swaps translucent surfaces for solid ones, so the GPU only has to handle
+   the brief, transform/opacity-based gameplay animations (slides, pops,
+   floats). */
+
+.mr-lite .backdrop__stars,
+.mr-lite .backdrop__blob,
+.mr-lite .backdrop__grid {
+  display: none;
+}
+
+.mr-lite .backdrop {
+  background: radial-gradient(1100px 500px at 50% -10%, #141945 0%, transparent 60%), var(--bg);
+}
+
+/* Glass -> solid surfaces. backdrop-filter over an animated page is the
+   single most expensive effect on mobile GPUs. */
+.mr-lite .board,
+.mr-lite .powers,
+.mr-lite .btn,
+.mr-lite .score,
+.mr-lite .statusbar,
+.mr-lite .board-callout,
+.mr-lite .overlay {
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+}
+
+.mr-lite .board {
+  background: #181d46;
+}
+
+.mr-lite .score,
+.mr-lite .statusbar,
+.mr-lite .powers {
+  background: var(--surface-solid);
+}
+
+/* Ambient loops off. Gameplay feedback stays: it is short-lived and
+   compositor-driven. */
+.mr-lite .brand__mark,
+.mr-lite .brand__name,
+.mr-lite .board__rim-rotor,
+.mr-lite .energy__fill::before,
+.mr-lite .power--ready .power__icon,
+.mr-lite .power__icon .spark,
+.mr-lite .rush--on::after,
+.mr-lite .power--armed::after,
+.mr-lite .tile--v1024::after,
+.mr-lite .tile--v2048::after,
+.mr-lite .tile--v4096::after,
+.mr-lite .tile--v8192::after {
+  animation: none;
+}
+
+/* Decorative particle layer off; powers still report through sound,
+   haptics, and the banner. */
+.mr-lite .fx {
+  display: none;
+}

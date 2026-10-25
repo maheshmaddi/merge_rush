@@ -1,0 +1,301 @@
+/* Global reset and page shell. Mobile-first single column; the layout is
+   centered with a sensible maximum width on larger screens. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  /* Guard against accidental horizontal scroll from gestures aimed at the board. */
+  overflow-x: hidden;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  font-family: var(--font);
+  color: var(--text);
+  background: var(--bg);
+  min-height: 100dvh;
+  line-height: 1.4;
+  -webkit-tap-highlight-color: transparent;
+  /* App-like feel: no pull-to-refresh bounce, no long-press text selection. */
+  overscroll-behavior: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* Living backdrop: starfield, drifting aurora blobs, faint perspective grid */
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  overflow: hidden;
+  pointer-events: none;
+  background: radial-gradient(1200px 700px at 50% -20%, #1b1f5c 0%, transparent 65%), var(--bg);
+}
+
+.backdrop__stars {
+  position: absolute;
+  inset: -50%;
+  background-image:
+    radial-gradient(1.4px 1.4px at 20px 30px, rgba(255, 255, 255, 0.8), transparent),
+    radial-gradient(1px 1px at 120px 80px, rgba(200, 220, 255, 0.7), transparent),
+    radial-gradient(1.6px 1.6px at 200px 150px, rgba(255, 240, 255, 0.75), transparent),
+    radial-gradient(1px 1px at 60px 190px, rgba(180, 230, 255, 0.6), transparent),
+    radial-gradient(1.2px 1.2px at 260px 40px, rgba(255, 255, 255, 0.55), transparent);
+  background-size: 300px 220px;
+  animation: stars-drift 120s linear infinite;
+  opacity: 0.7;
+}
+
+@keyframes stars-drift {
+  to {
+    transform: translate3d(-300px, -220px, 0);
+  }
+}
+
+.backdrop__blob {
+  position: absolute;
+  width: 60vmax;
+  height: 60vmax;
+  border-radius: 50%;
+  filter: blur(80px);
+  opacity: 0.4;
+  mix-blend-mode: screen;
+  transition: opacity 600ms ease;
+}
+
+.backdrop__blob--a {
+  top: -20vmax;
+  left: -18vmax;
+  background: radial-gradient(circle, #7c3aed 0%, transparent 65%);
+  animation: blob-a 26s ease-in-out infinite alternate;
+}
+
+.backdrop__blob--b {
+  bottom: -26vmax;
+  right: -20vmax;
+  background: radial-gradient(circle, #06b6d4 0%, transparent 65%);
+  animation: blob-b 30s ease-in-out infinite alternate;
+}
+
+.backdrop__blob--c {
+  top: 30%;
+  left: 40%;
+  width: 40vmax;
+  height: 40vmax;
+  background: radial-gradient(circle, #ec4899 0%, transparent 65%);
+  opacity: 0.22;
+  animation: blob-c 34s ease-in-out infinite alternate;
+}
+
+.backdrop--rush .backdrop__blob--a {
+  background: radial-gradient(circle, #f59e0b 0%, transparent 65%);
+  opacity: 0.5;
+}
+.backdrop--rush .backdrop__blob--c {
+  background: radial-gradient(circle, #ff4d6d 0%, transparent 65%);
+  opacity: 0.38;
+}
+
+@keyframes blob-a {
+  to {
+    transform: translate3d(18vmax, 12vmax, 0) scale(1.15);
+  }
+}
+@keyframes blob-b {
+  to {
+    transform: translate3d(-16vmax, -14vmax, 0) scale(1.2);
+  }
+}
+@keyframes blob-c {
+  to {
+    transform: translate3d(-22vmax, 10vmax, 0) scale(0.85);
+  }
+}
+
+.backdrop__grid {
+  position: absolute;
+  left: -50%;
+  right: -50%;
+  bottom: -10%;
+  height: 45%;
+  overflow: hidden;
+  transform: perspective(500px) rotateX(62deg);
+  transform-origin: bottom;
+  mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent 85%);
+  -webkit-mask-image: linear-gradient(to top, rgba(0, 0, 0, 0.7), transparent 85%);
+}
+
+/* The scrolling grid is a tall pattern strip translated on the compositor;
+   animating background-position here would repaint a 200%-wide layer every
+   frame. */
+.backdrop__grid::before {
+  content: '';
+  position: absolute;
+  inset: -100% 0;
+  background-image:
+    linear-gradient(rgba(139, 92, 246, 0.22) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(139, 92, 246, 0.22) 1px, transparent 1px);
+  background-size: 48px 48px;
+  animation: grid-scroll 6s linear infinite;
+  will-change: transform;
+}
+
+@keyframes grid-scroll {
+  to {
+    transform: translateY(48px);
+  }
+}
+
+#root {
+  min-height: 100dvh;
+}
+
+.app {
+  position: relative;
+  z-index: 1;
+  max-width: 520px;
+  margin: 0 auto;
+  padding:
+    calc(10px + env(safe-area-inset-top))
+    calc(14px + env(safe-area-inset-right))
+    calc(18px + env(safe-area-inset-bottom))
+    calc(14px + env(safe-area-inset-left));
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.app__main {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  align-items: stretch;
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  border: 0;
+  clip: rect(0 0 0 0);
+  clip-path: inset(50%);
+  overflow: hidden;
+  white-space: nowrap;
+}
+
+/* Buttons */
+.btn {
+  font-family: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+  color: var(--text);
+  background: var(--surface-2);
+  border: 1px solid var(--line);
+  border-radius: var(--radius-md);
+  padding: 11px 16px;
+  min-height: 46px;
+  cursor: pointer;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  box-shadow: var(--shadow-inset), 0 6px 18px rgba(2, 4, 20, 0.35);
+  transition:
+    transform 120ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease,
+    border-color 160ms ease;
+}
+
+.btn:hover:not(:disabled) {
+  background: var(--surface-3);
+  border-color: var(--line-bright);
+}
+
+.btn:active:not(:disabled) {
+  transform: scale(0.96);
+}
+
+.btn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}
+
+.btn:focus-visible {
+  outline: 2px solid var(--cyan);
+  outline-offset: 2px;
+}
+
+.btn--primary {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(135deg, #9d6bff 0%, #6d3fe6 50%, #3fb8ff 120%);
+  border-color: rgba(255, 255, 255, 0.18);
+  box-shadow:
+    0 10px 28px rgba(109, 63, 230, 0.5),
+    inset 0 1px 0 rgba(255, 255, 255, 0.3);
+}
+
+.btn--primary::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: linear-gradient(110deg, transparent 30%, rgba(255, 255, 255, 0.35) 50%, transparent 70%);
+  transform: translateX(-120%);
+  animation: shine 3.6s ease-in-out infinite;
+}
+
+@keyframes shine {
+  0%,
+  60% {
+    transform: translateX(-120%);
+  }
+  100% {
+    transform: translateX(120%);
+  }
+}
+
+.btn--primary:hover:not(:disabled) {
+  background: linear-gradient(135deg, #ad80ff 0%, #7d50f0 50%, #52c4ff 120%);
+}
+
+.btn--icon {
+  padding: 8px 12px;
+  min-height: 42px;
+  min-width: 42px;
+  font-size: 18px;
+  line-height: 1;
+  border-radius: 50%;
+}
+
+/* Desktop tuning */
+@media (min-width: 700px) {
+  .app {
+    padding-top: calc(26px + env(safe-area-inset-top));
+    gap: 16px;
+  }
+}
+
+/* Reduced motion: no slides, pops, or floats. */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}

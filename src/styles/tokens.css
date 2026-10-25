@@ -1,0 +1,46 @@
+/* Design tokens: a deep cosmic night with neon aurora accents - electric
+   violet, cyan, hot coral, and molten gold. Board geometry derives entirely
+   from --board-size so tiles stay responsive at any viewport. */
+:root {
+  --bg: #070a1f;
+  --bg-2: #0c1030;
+  --surface: rgba(24, 28, 66, 0.62);
+  --surface-2: rgba(34, 39, 88, 0.72);
+  --surface-3: rgba(48, 54, 116, 0.82);
+  --surface-solid: #151a40;
+  --cell-bg: rgba(6, 9, 30, 0.6);
+  --line: rgba(160, 140, 255, 0.18);
+  --line-bright: rgba(190, 175, 255, 0.38);
+
+  --violet: #8b5cf6;
+  --violet-deep: #5b2fd6;
+  --cyan: #38e1ff;
+  --coral: #ff6b8b;
+  --gold: #ffc53d;
+  --mint: #4dffc3;
+
+  --text: #f2f3ff;
+  --text-muted: #a3aad6;
+  --text-dark: #070a1f;
+
+  --shadow-lg: 0 24px 60px rgba(1, 3, 18, 0.65);
+  --shadow-inset: inset 0 1px 0 rgba(255, 255, 255, 0.07);
+  --glass-blur: blur(14px) saturate(140%);
+
+  --radius-lg: 24px;
+  --radius-md: 14px;
+  --radius-sm: 10px;
+
+  /* dvh first as a fallback; svh (small viewport) wins where supported so
+     the board keeps a stable size when the Android URL bar hides/shows. */
+  --board-size: min(92vw, 52dvh, 440px);
+  --board-size: min(92vw, 52svh, 440px);
+  --board-gap: calc(var(--board-size) * 0.026);
+  --cell: calc((var(--board-size) - 5 * var(--board-gap)) / 4);
+
+  --font:
+    'Segoe UI Variable Display', 'Segoe UI', system-ui, -apple-system, 'Helvetica Neue', Arial,
+    sans-serif;
+  --font-numeric: ui-rounded, 'SF Pro Rounded', 'Segoe UI Variable Display', 'Segoe UI', system-ui,
+    sans-serif;
+}
