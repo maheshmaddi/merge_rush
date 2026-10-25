@@ -9,6 +9,7 @@ import { useSwipeInput } from './hooks/useSwipeInput';
 import { useKeyboardInput } from './hooks/useKeyboardInput';
 import { useReducedMotion } from './hooks/useReducedMotion';
 import { useLiteMode } from './hooks/useLiteMode';
+import { useBackButton } from './hooks/useBackButton';
 import { soundEngine } from './audio/soundEngine';
 import { Header } from './components/Header';
 import { ScoreBoard } from './components/ScoreBoard';
@@ -201,6 +202,7 @@ export default function App({ initialState }: AppProps) {
     if (dailyActive) void leaderboards.submit('daily', game.score);
   }, [game.gameOver, game.score, dailyActive, initialState]);
   const [shareNote, setShareNote] = useState('');
+  const [exitHint, setExitHint] = useState(false);
   const onShare = () => {
     void shareScore({
       score: game.score,
@@ -224,6 +226,29 @@ export default function App({ initialState }: AppProps) {
   const askRate = game.gameOver && !progress.rateAsked && progress.gamesFinished >= 5 && beatBest;
   const stuck = !game.gameOver && !game.lastChance && !hasAnyMoves(game.board);
   const rescues = rescuesLeft(game.rescuesUsed, game.reviveUsed);
+
+  // Android back button: dismiss sheets, disarm targeting, go home, then
+  // exit only after a press-back-again confirmation.
+  const goHome = useCallback(() => {
+    setSheet(null);
+    setTargeting(null);
+    setScreen('title');
+  }, []);
+  useBackButton({
+    adPlaying: ads.adPlaying,
+    sheetOpen: sheet !== null || askRate,
+    targetingArmed: targeting !== null,
+    onTitle: screen === 'title',
+    onCloseSheet: sheet !== null ? () => setSheet(null) : progressApi.markRateAsked,
+    onDisarm: () => setTargeting(null),
+    onHome: goHome,
+    onExitHint: () => setExitHint(true),
+  });
+  useEffect(() => {
+    if (!exitHint) return;
+    const timer = window.setTimeout(() => setExitHint(false), 2000);
+    return () => window.clearTimeout(timer);
+  }, [exitHint]);
 
   return (
     <>
@@ -349,6 +374,11 @@ export default function App({ initialState }: AppProps) {
       )}
       {sheet === 'leaderboard' && <LeaderboardSheet onClose={() => setSheet(null)} />}
       <Toasts toasts={progressApi.toasts} onDismiss={progressApi.dismissToast} />
+      {exitHint && (
+        <div className="toast" role="status">
+          Press back again to exit
+        </div>
+      )}
       {askRate && sheet === null && (
         <DialogSheet title="Enjoying Merge Rush?" onClose={progressApi.markRateAsked}>
           <p className="howto__text">
