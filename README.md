@@ -152,18 +152,17 @@ npm run typecheck  # tsc --noEmit with strict settings
 ### Power-ups
 
 Four powers can be fired instead of a swipe (buttons under the board, or keys
-1–4; Esc cancels a targeted power):
+1–3; Esc cancels a targeted power):
 
 | Power   | Effect                                                         |
 | ------- | -------------------------------------------------------------- |
 | Bomb    | Tap a tile to destroy it.                                      |
-| Upgrade | Tap a tile to double it.                                       |
 | Shuffle | Scatter every tile to random cells.                            |
-| Sweep   | Clear every tile of the smallest value (a bigger one must remain). |
+| Sweep   | Clear every tile of the smallest value. Only usable when that value is at most a quarter of the biggest tile, so it never removes big tiles. |
 
 Powers never spawn a tile, score points, or touch the combo / Rush state.
 
-**Economy.** A game starts with 1 Bomb and 1 Upgrade; each power holds at most
+**Economy.** A game starts with 1 Bomb; each power holds at most
 3 charges. Every merge adds 1 energy (2 during Rush). The next charge costs
 `min(10 + 20 × chargesEarned, 100)` energy - 10, 30, 50, 70, 90, 100, … - and
 goes to the power you hold fewest of, so Shuffle and Sweep are introduced by

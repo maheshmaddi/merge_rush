@@ -64,7 +64,7 @@ export interface ComboState {
 }
 
 /** Power-ups the player can fire instead of swiping. */
-export type PowerId = 'bomb' | 'upgrade' | 'shuffle' | 'sweep';
+export type PowerId = 'bomb' | 'shuffle' | 'sweep';
 
 /** Charges per power plus the energy meter that earns new charges. */
 export interface PowerState {
@@ -78,7 +78,7 @@ export interface PowerState {
 /** Render hint for a power that was just used. */
 export interface PowerFx {
   id: PowerId;
-  /** Cells the power touched (blast / upgraded / swept cells). */
+  /** Cells the power touched (blasted / swept cells). */
   cells: Array<{ row: number; col: number; value: number }>;
 }
 

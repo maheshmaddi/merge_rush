@@ -12,7 +12,6 @@ interface PowerMeta {
 
 export const POWER_META: Record<PowerId, PowerMeta> = {
   bomb: { name: 'Bomb', blurb: 'Tap a tile to blast it', hue: '#ff6b5e', glow: 'rgba(255, 107, 94, 0.55)' },
-  upgrade: { name: 'Upgrade', blurb: 'Tap a tile to double it', hue: '#ffc53d', glow: 'rgba(255, 197, 61, 0.55)' },
   shuffle: { name: 'Shuffle', blurb: 'Scatter every tile', hue: '#38e1ff', glow: 'rgba(56, 225, 255, 0.5)' },
   sweep: { name: 'Sweep', blurb: 'Clear the smallest tiles', hue: '#b388ff', glow: 'rgba(179, 136, 255, 0.55)' },
 };
@@ -27,13 +26,6 @@ export function PowerIcon({ id }: { id: PowerId }) {
           <rect x="17.5" y="7.5" width="5" height="5" rx="1.2" transform="rotate(45 20 10)" fill="currentColor" />
           <path d="M22 8 q3 -4 6 -2" stroke="currentColor" strokeWidth="1.8" fill="none" strokeLinecap="round" />
           <circle className="spark" cx="28" cy="5.5" r="2.2" fill="#fff6c2" />
-        </svg>
-      );
-    case 'upgrade':
-      return (
-        <svg viewBox="0 0 32 32" aria-hidden="true" focusable="false">
-          <path d="M16 3 19.4 11.6 28 12.3 21.4 18 23.4 26.6 16 22 8.6 26.6 10.6 18 4 12.3 12.6 11.6Z" fill="currentColor" />
-          <path d="M16 9v10M12 13l4-4 4 4" stroke="#2b1a00" strokeWidth="2.4" fill="none" strokeLinecap="round" strokeLinejoin="round" />
         </svg>
       );
     case 'shuffle':
@@ -69,7 +61,7 @@ interface PowerBarProps {
 }
 
 /**
- * Energy meter plus the four power buttons. Targeted powers (Bomb, Upgrade)
+ * Energy meter plus the three power buttons. Targeted powers (Bomb)
  * arm a tile-picking mode; the others fire immediately.
  */
 export function PowerBar({ game, targeting, onSelect }: PowerBarProps) {

@@ -257,7 +257,7 @@ function applyPower(state: EngineState, power: PowerId, cell?: number): EngineSt
   const maxTileValue = result.tiles.reduce((max, tile) => Math.max(max, tile.value), 0);
 
   const lastMove: LastMoveInfo = {
-    mergedTileIds: power === 'upgrade' ? result.tiles.filter((tile) => tile.row * BOARD_SIZE + tile.col === cell).map((tile) => tile.id) : [],
+    mergedTileIds: [],
     ghosts: result.removed,
     spawnedTileId: -1,
     score: { base: 0, chainBonus: 0, multiplier: 1, total: 0 },

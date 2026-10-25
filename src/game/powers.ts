@@ -2,7 +2,6 @@
  * Power-ups. Pure and deterministic like the rest of the engine.
  *
  * - Bomb:    destroy one chosen tile.
- * - Upgrade: double one chosen tile.
  * - Shuffle: scatter every tile to random cells (seeded PRNG).
  * - Sweep:   clear every tile holding the board's smallest value, as long as
  *            at least one bigger tile remains.
@@ -28,16 +27,16 @@ import {
   LEFTOVER_CHARGE_BONUS,
   MAX_RESCUES,
   REVIVE_RESCUES,
-  MAX_TILE_VALUE,
   POWER_IDS,
   POWER_MAX_CHARGES,
   POWER_START_CHARGES,
+  SWEEP_MAX_RATIO,
 } from './constants';
 import { hasAnyMoves } from './gameOver';
 import { nextFloat } from './random';
 
 /** Powers that need the player to pick a tile. */
-export const TARGETED_POWERS: ReadonlySet<PowerId> = new Set<PowerId>(['bomb', 'upgrade']);
+export const TARGETED_POWERS: ReadonlySet<PowerId> = new Set<PowerId>(['bomb']);
 
 export function startingPowers(): PowerState {
   return {
@@ -48,7 +47,7 @@ export function startingPowers(): PowerState {
 }
 
 export function emptyPowers(): PowerState {
-  return { charges: { bomb: 0, upgrade: 0, shuffle: 0, sweep: 0 }, energy: 0, earned: 0 };
+  return { charges: { bomb: 0, shuffle: 0, sweep: 0 }, energy: 0, earned: 0 };
 }
 
 /** Energy needed for the next charge, given how many were already earned. */
@@ -94,7 +93,7 @@ export function gameStatus(
 export function cashOutCharges(powers: PowerState): { powers: PowerState; bonus: number } {
   const bonus = totalCharges(powers) * LEFTOVER_CHARGE_BONUS;
   return {
-    powers: { ...powers, charges: { bomb: 0, upgrade: 0, shuffle: 0, sweep: 0 } },
+    powers: { ...powers, charges: { bomb: 0, shuffle: 0, sweep: 0 } },
     bonus,
   };
 }
@@ -153,14 +152,13 @@ export function canUsePower(game: GameState, id: PowerId, cell?: number): boolea
     case 'bomb':
       if (cell === undefined) return tileCount > 1;
       return tileCount > 1 && game.board[cell] > 0;
-    case 'upgrade':
-      if (cell === undefined) return tileCount > 0;
-      return game.board[cell] > 0 && game.board[cell] * 2 <= MAX_TILE_VALUE;
     case 'shuffle':
       return tileCount > 1;
     case 'sweep': {
       const { min, max } = smallestAndLargest(game.board);
-      return tileCount > 1 && min < max;
+      // Only ever clears the small stuff: the smallest value must be at most a
+      // quarter of the biggest tile, so a late-game board never loses real progress.
+      return tileCount > 1 && min * SWEEP_MAX_RATIO <= max;
     }
   }
 }
@@ -194,13 +192,6 @@ export function applyPowerToBoard(game: GameState, id: PowerId, cell?: number): 
         return false;
       });
       cells.push({ row: Math.floor(target / BOARD_SIZE), col: target % BOARD_SIZE, value: game.board[target] });
-      break;
-    }
-    case 'upgrade': {
-      const target = cell as number;
-      board[target] = game.board[target] * 2;
-      tiles = tiles.map((tile) => (at(tile) === target ? { ...tile, value: board[target] } : tile));
-      cells.push({ row: Math.floor(target / BOARD_SIZE), col: target % BOARD_SIZE, value: board[target] });
       break;
     }
     case 'shuffle': {

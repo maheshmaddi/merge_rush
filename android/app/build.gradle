@@ -20,8 +20,8 @@ android {
         applicationId "com.mergerush.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 3
-        versionName "1.2.0"
+        versionCode 4
+        versionName "1.2.1"
         // AdMob app ID (ca-app-pub-XXXX~YYYY). Set ADMOB_APP_ID in
         // android/gradle.properties for release; falls back to Google's test app.
         manifestPlaceholders = [admobAppId: admobAppId]

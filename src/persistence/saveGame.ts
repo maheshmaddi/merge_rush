@@ -185,7 +185,11 @@ function validatePrefs(value: unknown): GamePrefs | null {
 }
 
 function withEarned(powers: PowerState): PowerState {
-  return { ...powers, earned: powers.earned ?? 0 };
+  // Drop charges of powers that no longer exist (the retired Upgrade).
+  const charges = Object.fromEntries(
+    POWER_IDS.map((id) => [id, powers.charges[id]]),
+  ) as PowerState['charges'];
+  return { ...powers, charges, earned: powers.earned ?? 0 };
 }
 
 function toGameState(saved: SerializedGame): GameState {

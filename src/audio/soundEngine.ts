@@ -19,7 +19,6 @@ export type SoundName =
   | 'undo'
   | 'record'
   | 'bomb'
-  | 'upgrade'
   | 'shuffle'
   | 'sweep'
   | 'powerEarned'
@@ -644,13 +643,6 @@ class SoundEngine {
             slideTo: 28,
             wet: 0.2,
           });
-          break;
-        case 'upgrade':
-          // Sparkling climb with a bright landing.
-          [523.25, 659.25, 783.99, 1046.5].forEach((f, i) => {
-            this.bell(f, i * 0.07, 0.35, 0.16);
-          });
-          this.bell(1567.98, 0.3, 0.7, 0.18);
           break;
         case 'shuffle':
           // Cards riffling.

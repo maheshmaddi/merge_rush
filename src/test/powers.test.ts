@@ -36,7 +36,7 @@ function tilesFromBoard(board: Board): Tile[] {
 }
 
 /** One charge of everything, so each power can be exercised directly. */
-const oneOfEach: PowerState = { charges: { bomb: 1, upgrade: 1, shuffle: 1, sweep: 1 }, energy: 0, earned: 0 };
+const oneOfEach: PowerState = { charges: { bomb: 1, shuffle: 1, sweep: 1 }, energy: 0, earned: 0 };
 
 function engine(board: Board, powers: PowerState = oneOfEach, overrides: Partial<GameState> = {}): EngineState {
   const tiles = tilesFromBoard(board);
@@ -75,6 +75,9 @@ const stuckBoard: Board = [
   4, 2, 4, 8,
 ];
 
+/** A full board of 16 distinct values: no permutation of it has a mergeable pair. */
+const deadBoard: Board = [2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536];
+
 describe('powers', () => {
   it('a new game starts with the configured starting charges', () => {
     expect(createNewGame(1).powers).toEqual({ charges: POWER_START_CHARGES, energy: 0, earned: 0 });
@@ -108,13 +111,6 @@ describe('powers', () => {
     expect(gameReducer(empty, { type: 'power', power: 'bomb', cell: 0 })).toBe(empty);
   });
 
-  it('upgrade doubles the targeted tile and keeps its identity', () => {
-    const board: Board = [2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
-    const next = gameReducer(engine(board), { type: 'power', power: 'upgrade', cell: 1 });
-    expect(next.game.board[1]).toBe(8);
-    expect(next.game.tiles.find((t) => t.id === 2)?.value).toBe(8);
-  });
-
   it('shuffle keeps the same multiset of values and advances the PRNG', () => {
     const board: Board = [2, 4, 8, 16, 32, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     const state = engine(board);
@@ -127,22 +123,34 @@ describe('powers', () => {
   });
 
   it('sweep clears every smallest tile but needs a bigger tile left', () => {
-    const board: Board = [2, 2, 4, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    const board: Board = [2, 2, 8, 0, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
     const next = gameReducer(engine(board), { type: 'power', power: 'sweep' });
-    expect(next.game.board.filter((v) => v !== 0)).toEqual([4]);
+    expect(next.game.board.filter((v) => v !== 0)).toEqual([8]);
     const flat = engine([2, 2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
     expect(canUsePower(flat.game, 'sweep')).toBe(false);
   });
 
+  it('sweep never clears big tiles: the smallest must be at most a quarter of the biggest', () => {
+    const tooBig = engine([32, 32, 64, 64, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(canUsePower(tooBig.game, 'sweep')).toBe(false);
+    expect(gameReducer(tooBig, { type: 'power', power: 'sweep' })).toBe(tooBig);
+    const ok = engine([16, 16, 64, 128, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(canUsePower(ok.game, 'sweep')).toBe(true);
+    const next = gameReducer(ok, { type: 'power', power: 'sweep' });
+    expect(next.game.board.filter((v) => v !== 0).sort((a, b) => a - b)).toEqual([64, 128]);
+    // The biggest tile always survives a sweep.
+    expect(Math.max(...next.game.board)).toBe(128);
+  });
+
   it('a stuck board is not game over while charges remain', () => {
-    const stuck = engine(stuckBoard, { charges: { bomb: 1, upgrade: 0, shuffle: 0, sweep: 0 }, energy: 0, earned: 0 });
+    const stuck = engine(stuckBoard, { charges: { bomb: 1, shuffle: 0, sweep: 0 }, energy: 0, earned: 0 });
     const freed = gameReducer(stuck, { type: 'power', power: 'bomb', cell: 0 });
     expect(freed.game.gameOver).toBe(false);
     expect(freed.game.board[0]).toBe(0);
   });
 
   it('energy pays out a charge to the emptiest power', () => {
-    const powers: PowerState = { charges: { bomb: 2, upgrade: 1, shuffle: 0, sweep: 1 }, energy: energyCost(0) - 1, earned: 0 };
+    const powers: PowerState = { charges: { bomb: 2, shuffle: 0, sweep: 1 }, energy: energyCost(0) - 1, earned: 0 };
     const result = addEnergy(powers, 2);
     expect(result.earned).toBe('shuffle');
     expect(result.powers.charges.shuffle).toBe(1);
@@ -151,7 +159,7 @@ describe('powers', () => {
 
   it('energy stops paying out when every power is full', () => {
     const full: PowerState = {
-      charges: { bomb: POWER_MAX_CHARGES, upgrade: POWER_MAX_CHARGES, shuffle: POWER_MAX_CHARGES, sweep: POWER_MAX_CHARGES },
+      charges: { bomb: POWER_MAX_CHARGES, shuffle: POWER_MAX_CHARGES, sweep: POWER_MAX_CHARGES },
       energy: energyCost(0) - 1,
       earned: 0,
     };
@@ -180,7 +188,7 @@ describe('powers', () => {
       removeItem: (k) => void data.delete(k),
     } as SafeStorage;
     const state = engine([2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], {
-      charges: { bomb: 3, upgrade: 0, shuffle: 2, sweep: 1 },
+      charges: { bomb: 3, shuffle: 2, sweep: 1 },
       energy: 4,
       earned: 2,
     });
@@ -201,7 +209,7 @@ describe('powers', () => {
 
 describe('rescue limit and leftover bonus', () => {
   const manyCharges = (): PowerState => ({
-    charges: { bomb: 3, upgrade: 3, shuffle: 3, sweep: 3 },
+    charges: { bomb: 3, shuffle: 3, sweep: 3 },
     energy: 0,
     earned: 0,
   });
@@ -221,24 +229,24 @@ describe('rescue limit and leftover bonus', () => {
 
   it('a stuck board with every rescue spent is game over and cashes in charges', () => {
     // Upgrading the corner 8 to 16 keeps the board full with no pairs; with the
-    // last rescue spent that ends the game although 11 charges remain.
-    const state = engine(stuckBoard, manyCharges(), {
+    // last rescue spent that ends the game although 8 charges remain.
+    const state = engine(deadBoard, manyCharges(), {
       rescuesUsed: rescueLimit(true) - 1,
       score: 1000,
       reviveUsed: true,
     });
-    const next = gameReducer(state, { type: 'power', power: 'upgrade', cell: 15 });
+    const next = gameReducer(state, { type: 'power', power: 'shuffle' });
     expect(next.game.gameOver).toBe(true);
     expect(next.game.rescuesUsed).toBe(rescueLimit(true));
-    expect(next.game.powerBonus).toBe(11 * LEFTOVER_CHARGE_BONUS);
-    expect(next.game.score).toBe(1000 + 11 * LEFTOVER_CHARGE_BONUS);
+    expect(next.game.powerBonus).toBe(8 * LEFTOVER_CHARGE_BONUS);
+    expect(next.game.score).toBe(1000 + 8 * LEFTOVER_CHARGE_BONUS);
     expect(totalCharges(next.game.powers)).toBe(0);
     expect(next.stats.best).toBe(next.game.score);
   });
 
   it('no power can fire on a stuck board once rescues are used up', () => {
     const game = engine(stuckBoard, manyCharges(), { rescuesUsed: MAX_RESCUES }).game;
-    for (const id of ['bomb', 'upgrade', 'shuffle', 'sweep'] as const) {
+    for (const id of ['bomb', 'shuffle', 'sweep'] as const) {
       expect(canUsePower(game, id, 0)).toBe(false);
     }
   });
@@ -256,7 +264,7 @@ describe('rescue limit and leftover bonus', () => {
     const next = gameReducer(state, { type: 'move', direction: 'right' });
     expect(next.game.board.slice(12)).toEqual([4, 2, 4, 8]);
     expect(next.game.gameOver).toBe(true);
-    expect(next.game.powerBonus).toBe(12 * LEFTOVER_CHARGE_BONUS);
+    expect(next.game.powerBonus).toBe(9 * LEFTOVER_CHARGE_BONUS);
   });
 
   it('a stuck board with rescues left is not game over', () => {
@@ -300,16 +308,15 @@ describe('rescue limit and leftover bonus', () => {
 
 describe('last-chance revive', () => {
   const someCharges = (): PowerState => ({
-    charges: { bomb: 0, upgrade: 2, shuffle: 1, sweep: 0 },
+    charges: { bomb: 0, shuffle: 3, sweep: 0 },
     energy: 0,
     earned: 0,
   });
-  // Upgrading the corner 8 to 16 leaves the board full with no pairs.
+  // Shuffling a full board of distinct tiles leaves it with no pairs.
   const lastRescue = () =>
-    gameReducer(engine(stuckBoard, someCharges(), { rescuesUsed: MAX_RESCUES - 1, score: 1000 }), {
+    gameReducer(engine(deadBoard, someCharges(), { rescuesUsed: MAX_RESCUES - 1, score: 1000 }), {
       type: 'power',
-      power: 'upgrade',
-      cell: 15,
+      power: 'shuffle',
     });
 
   it('a game that would end pauses on a last chance instead, charges intact', () => {
@@ -355,8 +362,8 @@ describe('last-chance revive', () => {
 
   it('only one revive per game: the next dead end is game over', () => {
     const revived = gameReducer(lastRescue(), { type: 'revive' });
-    // Spend the revive's rescue on an upgrade that keeps the board stuck.
-    const next = gameReducer(revived, { type: 'power', power: 'upgrade', cell: 14 });
+    // Spend the revive's rescue on a shuffle that keeps the board stuck.
+    const next = gameReducer(revived, { type: 'power', power: 'shuffle' });
     expect(next.game.lastChance).toBe(false);
     expect(next.game.gameOver).toBe(true);
   });

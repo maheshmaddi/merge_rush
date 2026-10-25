@@ -15,7 +15,7 @@ const CARDS = [
   {
     icon: '⚡',
     title: 'Charge your powers',
-    text: 'Merging fills the energy bar. Each time it fills you earn a power: Bomb, Upgrade, Shuffle or Sweep. Tap a power to use it.',
+    text: 'Merging fills the energy bar. Each time it fills you earn a power: Bomb, Shuffle or Sweep. Tap a power to use it.',
   },
   {
     icon: '❤️',
