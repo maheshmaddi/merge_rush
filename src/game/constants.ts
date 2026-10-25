@@ -40,6 +40,13 @@ export const ENERGY_COST_MAX = 100;
  */
 export const MAX_RESCUES = 3;
 export const LEFTOVER_CHARGE_BONUS = 250;
+/**
+ * Once per game, a game that would end can be revived (in the app: by
+ * watching a rewarded ad). A revive grants REVIVE_RESCUES extra rescue and
+ * REVIVE_BOMBS Bomb charge, which always frees a stuck board.
+ */
+export const REVIVE_RESCUES = 1;
+export const REVIVE_BOMBS = 1;
 /** Upgrade never pushes a tile past this value (save-format ceiling). */
 export const MAX_TILE_VALUE = 1_048_576;
 

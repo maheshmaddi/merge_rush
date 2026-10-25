@@ -29,6 +29,9 @@ export interface GameEngineApi {
   undo: () => void;
   firePower: (power: PowerId, cell?: number) => void;
   restart: () => void;
+  /** Answer a last-chance revive offer. */
+  revive: () => void;
+  declineRevive: () => void;
   toggleSound: () => void;
 }
 
@@ -103,6 +106,15 @@ export function useGameEngine(initialState?: EngineState): GameEngineApi {
 
   const restart = useCallback(() => {
     dispatch({ type: 'restart' });
+  }, []);
+
+  const revive = useCallback(() => {
+    dispatch({ type: 'revive' });
+    soundEngine.play('revive');
+  }, []);
+
+  const declineRevive = useCallback(() => {
+    dispatch({ type: 'declineRevive' });
   }, []);
 
   const toggleSound = useCallback(() => {
@@ -194,7 +206,7 @@ export function useGameEngine(initialState?: EngineState): GameEngineApi {
     };
   }, []);
 
-  return { state, move, undo, firePower, restart, toggleSound };
+  return { state, move, undo, firePower, restart, revive, declineRevive, toggleSound };
 }
 
 /** Narrow re-export so components can type against GameState without cycles. */

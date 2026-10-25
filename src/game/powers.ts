@@ -13,7 +13,8 @@
  * more, so powers rescue a run without carrying it.
  *
  * A power fired on a stuck board is a rescue; MAX_RESCUES are allowed per
- * game. The game ends on a stuck board once charges or rescues run out, and
+ * game. When a stuck board runs out of charges or rescues, the game pauses on
+ * a one-time revive offer; once that is declined or spent, the game ends and
  * any unspent charges are cashed in for bonus points.
  */
 
@@ -26,6 +27,7 @@ import {
   ENERGY_COST_STEP,
   LEFTOVER_CHARGE_BONUS,
   MAX_RESCUES,
+  REVIVE_RESCUES,
   MAX_TILE_VALUE,
   POWER_IDS,
   POWER_MAX_CHARGES,
@@ -58,18 +60,31 @@ export function totalCharges(powers: PowerState): number {
   return POWER_IDS.reduce((sum, id) => sum + powers.charges[id], 0);
 }
 
-/** Game over = stuck board with no charges, or with every rescue spent. */
-export function isGameOverWithPowers(
+/** Rescues allowed this game: MAX_RESCUES, plus the revive's extra one. */
+export function rescueLimit(reviveUsed: boolean): number {
+  return MAX_RESCUES + (reviveUsed ? REVIVE_RESCUES : 0);
+}
+
+export function rescuesLeft(rescuesUsed: number, reviveUsed = false): number {
+  return Math.max(0, rescueLimit(reviveUsed) - rescuesUsed);
+}
+
+/**
+ * Where a board leaves the game. A stuck board the player can still rescue
+ * keeps playing; otherwise it offers the one revive, and ends once that is
+ * gone.
+ */
+export type GameStatus = 'playing' | 'lastChance' | 'over';
+
+export function gameStatus(
   board: Board,
   powers: PowerState,
   rescuesUsed: number,
-): boolean {
-  if (hasAnyMoves(board)) return false;
-  return totalCharges(powers) === 0 || rescuesUsed >= MAX_RESCUES;
-}
-
-export function rescuesLeft(rescuesUsed: number): number {
-  return Math.max(0, MAX_RESCUES - rescuesUsed);
+  reviveUsed: boolean,
+): GameStatus {
+  if (hasAnyMoves(board)) return 'playing';
+  if (totalCharges(powers) > 0 && rescuesUsed < rescueLimit(reviveUsed)) return 'playing';
+  return reviveUsed ? 'over' : 'lastChance';
 }
 
 /**
@@ -131,8 +146,8 @@ function smallestAndLargest(board: Board): { min: number; max: number } {
 
 /** Whether a power may be fired right now (and on the given cell, if targeted). */
 export function canUsePower(game: GameState, id: PowerId, cell?: number): boolean {
-  if (game.gameOver || game.powers.charges[id] <= 0) return false;
-  if (game.rescuesUsed >= MAX_RESCUES && !hasAnyMoves(game.board)) return false;
+  if (game.gameOver || game.lastChance || game.powers.charges[id] <= 0) return false;
+  if (game.rescuesUsed >= rescueLimit(game.reviveUsed) && !hasAnyMoves(game.board)) return false;
   const tileCount = game.board.filter((value) => value !== 0).length;
   switch (id) {
     case 'bomb':

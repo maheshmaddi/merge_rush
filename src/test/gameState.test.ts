@@ -45,6 +45,9 @@ function makeEngine(
     powers: emptyPowers(),
     rescuesUsed: 0,
     powerBonus: 0,
+    lastChance: false,
+    // Revive already spent: a stuck board ends the game directly.
+    reviveUsed: true,
     ...gameOverrides,
   };
   return {

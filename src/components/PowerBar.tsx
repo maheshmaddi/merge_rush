@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { GameState, PowerId } from '../game/types';
 import { MAX_RESCUES, POWER_IDS, POWER_MAX_CHARGES } from '../game/constants';
-import { canUsePower, energyCost, rescuesLeft } from '../game/powers';
+import { canUsePower, energyCost, rescueLimit, rescuesLeft } from '../game/powers';
 
 interface PowerMeta {
   name: string;
@@ -93,15 +93,23 @@ export function PowerBar({ game, targeting, onSelect }: PowerBarProps) {
         <span
           className="rescues"
           role="img"
-          aria-label={`${rescuesLeft(game.rescuesUsed)} of ${MAX_RESCUES} rescues left`}
+          aria-label={`${rescuesLeft(game.rescuesUsed, game.reviveUsed)} of ${rescueLimit(game.reviveUsed)} rescues left`}
           title="Rescues: powers fired on a stuck board"
         >
-          {Array.from({ length: MAX_RESCUES }, (_, i) => (
+          {Array.from({ length: rescueLimit(game.reviveUsed) }, (_, i) => (
             <svg
               key={i}
               viewBox="0 0 24 24"
               aria-hidden="true"
-              className={i < rescuesLeft(game.rescuesUsed) ? 'heart heart--on' : 'heart'}
+              className={[
+                'heart',
+                // Rescues are spent left to right, so the gold heart is the last one.
+                i >= game.rescuesUsed ? 'heart--on' : '',
+                // The revive's extra rescue shows as a gold heart.
+                i >= MAX_RESCUES ? 'heart--bonus' : '',
+              ]
+                .filter(Boolean)
+                .join(' ')}
             >
               <path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.2 0 3.6 1.2 4.3 2.4.7-1.2 2.1-2.4 4.3-2.4 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z" />
             </svg>

@@ -1,4 +1,4 @@
-import { LEFTOVER_CHARGE_BONUS, MAX_RESCUES } from '../game/constants';
+import { LEFTOVER_CHARGE_BONUS } from '../game/constants';
 
 interface GameOverOverlayProps {
   score: number;
@@ -6,7 +6,6 @@ interface GameOverOverlayProps {
   isNewBest: boolean;
   /** Points from unspent charges, cashed in when the game ended. */
   powerBonus: number;
-  rescuesUsed: number;
   onPlayAgain: () => void;
 }
 
@@ -15,10 +14,11 @@ export function GameOverOverlay({
   best,
   isNewBest,
   powerBonus,
-  rescuesUsed,
   onPlayAgain,
 }: GameOverOverlayProps) {
-  const outOfRescues = rescuesUsed >= MAX_RESCUES;
+  // Charges left over means the game ended on the rescue limit, not on an
+  // empty power bar.
+  const outOfRescues = powerBonus > 0;
   return (
     <div className="overlay" role="dialog" aria-modal="true" aria-labelledby="gameover-title">
       <div className="overlay__panel">

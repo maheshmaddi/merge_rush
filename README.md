@@ -3,7 +3,9 @@
 A polished, mobile-first number-merging puzzle game inspired by the 2048
 mechanic, with its own identity: chain bonuses, a combo streak, and **Rush
 Mode** for double points. Built with React + TypeScript + Vite. No backend, no
-accounts, no network requests — fully playable offline after the first load.
+accounts, no analytics. The web build makes no network requests and is fully
+playable offline after the first load; the Android app adds Google AdMob ads
+(see [Ads](#ads)) and still plays offline, just without ads.
 
 ## Prerequisites
 
@@ -66,6 +68,32 @@ already seen.
 configured in `android/keystore.properties`. Both are git-ignored. Back them
 up somewhere safe: every future update must be signed with the same key. If
 `keystore.properties` is missing, Gradle produces an unsigned release build.
+
+## Ads
+
+The Android app is free with ads (Google AdMob). Ads are placed where they
+cannot interrupt play:
+
+| Placement | Type | When | Limit |
+| --------- | ---- | ---- | ----- |
+| Continue (revive) | Rewarded, opt-in | The game would end; offered before the final score | Once per game: +1 rescue, +1 Bomb |
+| Between games | Interstitial | Play Again / New game after a finished game | Not in the first 2 games; ≥ 2 ad-free games and ≥ 4 min apart; skipped after games under 60 s or after a rewarded ad |
+
+No banners, no ad on app open, nothing mid-move. If a rewarded ad fails to
+play after the player tapped it, the revive is granted anyway. Game sound
+mutes while an ad plays. EEA/UK players get Google's consent form on first
+launch and a shield button in the header to change it.
+
+Code: `src/ads/` (`adService.ts` for AdMob / dev mock / no-ads,
+`adPolicy.ts` for interstitial spacing, `useAdFlows.ts` for the UI glue).
+In the browser dev server a labelled fake "TEST AD" stands in so the flows can
+be played; the web production build and tests show no ads.
+
+**Ad IDs.** Builds use Google's test ads until you configure real IDs: the
+AdMob app ID in `android/gradle.properties` (`ADMOB_APP_ID`) and the ad unit
+IDs in `.env.production` (template: `.env.example`). Full release steps,
+Data safety answers, privacy policy and app-ads.txt templates:
+[docs/play-store-release.md](docs/play-store-release.md).
 
 ## Testing and checks
 
@@ -169,9 +197,15 @@ first at move ~12, then every ~40 moves early and ~75 late.
 ### Game over
 
 The board is stuck when it is full and no two horizontally/vertically adjacent
-tiles are equal. A stuck board ends the game once no charges remain **or**
-all 3 rescues are spent; otherwise it shows how many rescues are left and
-prompts you to fire a power.
+tiles are equal. While charges and rescues remain, a stuck board shows how
+many rescues are left and prompts you to fire a power.
+
+Once neither can save the board, the game pauses on a **last chance**: once
+per game you may revive it (in the app, by watching a rewarded ad) for +1
+rescue (a gold heart) and +1 Bomb, which always frees the board. Declining,
+or reaching another dead end after reviving, ends the game and cashes in any
+unspent charges. Where no ad can play (web build, offline, no fill) the offer
+is skipped and the game ends directly.
 
 ### Undo and restart
 

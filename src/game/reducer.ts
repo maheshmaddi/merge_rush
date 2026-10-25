@@ -20,6 +20,8 @@ import type {
 } from './types';
 import {
   BOARD_SIZE,
+  POWER_MAX_CHARGES,
+  REVIVE_BOMBS,
   SPAWN_TWO_PROBABILITY,
   UNDOS_PER_GAME,
 } from './constants';
@@ -33,13 +35,15 @@ import {
   applyPowerToBoard,
   canUsePower,
   cashOutCharges,
-  isGameOverWithPowers,
+  gameStatus,
 } from './powers';
 import { drawSpawnValue, pickEmptyCell } from './random';
 
 export type GameAction =
   | { type: 'move'; direction: Direction }
   | { type: 'power'; power: PowerId; cell?: number }
+  | { type: 'revive' }
+  | { type: 'declineRevive' }
   | { type: 'undo' }
   | { type: 'restart'; seed?: number }
   | { type: 'toggleSound' }
@@ -69,6 +73,8 @@ function snapshotForUndo(game: GameState): UndoSnapshot {
     powers: game.powers,
     rescuesUsed: game.rescuesUsed,
     powerBonus: game.powerBonus,
+    lastChance: game.lastChance,
+    reviveUsed: game.reviveUsed,
   };
 }
 
@@ -79,7 +85,7 @@ function settleGameOver(gameOver: boolean, powers: PowerState): { powers: PowerS
 
 function applyMove(state: EngineState, direction: Direction): EngineState {
   const game = state.game;
-  if (game.gameOver) return state;
+  if (game.gameOver || game.lastChance) return state;
 
   const outcome = moveBoard(game.board, direction);
   if (!outcome.moved) return state; // invalid move: board, score, streak, rush untouched
@@ -147,7 +153,8 @@ function applyMove(state: EngineState, direction: Direction): EngineState {
     outcome.merges.length * (game.rush.active ? 2 : 1),
   );
 
-  const gameOver = isGameOverWithPowers(boardWithSpawn, energy.powers, game.rescuesUsed);
+  const status = gameStatus(boardWithSpawn, energy.powers, game.rescuesUsed, game.reviveUsed);
+  const gameOver = status === 'over';
   const settled = settleGameOver(gameOver, energy.powers);
   const newScore = game.score + moveScore.total + settled.bonus;
 
@@ -187,6 +194,8 @@ function applyMove(state: EngineState, direction: Direction): EngineState {
       powers: settled.powers,
       rescuesUsed: game.rescuesUsed,
       powerBonus: settled.bonus,
+      lastChance: status === 'lastChance',
+      reviveUsed: game.reviveUsed,
       celebratedRecord: game.celebratedRecord || newRecord,
       lastMove,
     },
@@ -220,6 +229,9 @@ function applyUndo(state: EngineState): EngineState {
       powers: snapshot.powers,
       rescuesUsed: snapshot.rescuesUsed,
       powerBonus: snapshot.powerBonus,
+      lastChance: snapshot.lastChance,
+      // A revive stays spent through undo: one per game, however you got there.
+      reviveUsed: game.reviveUsed,
       celebratedRecord: snapshot.celebratedRecord,
       lastMove: null,
     },
@@ -237,7 +249,8 @@ function applyPower(state: EngineState, power: PowerId, cell?: number): EngineSt
     ...game.powers,
     charges: { ...game.powers.charges, [power]: game.powers.charges[power] - 1 },
   };
-  const gameOver = isGameOverWithPowers(result.board, spent, rescuesUsed);
+  const status = gameStatus(result.board, spent, rescuesUsed, game.reviveUsed);
+  const gameOver = status === 'over';
   const settled = settleGameOver(gameOver, spent);
   const score = game.score + settled.bonus;
   const newRecord = state.stats.best > 0 && score > state.stats.best && !game.celebratedRecord;
@@ -268,6 +281,7 @@ function applyPower(state: EngineState, power: PowerId, cell?: number): EngineSt
       powers: settled.powers,
       rescuesUsed,
       powerBonus: settled.bonus,
+      lastChance: status === 'lastChance',
       gameOver,
       celebratedRecord: game.celebratedRecord || newRecord,
       canUndo: game.canUndo && UNDOS_PER_GAME > 0,
@@ -279,6 +293,51 @@ function applyPower(state: EngineState, power: PowerId, cell?: number): EngineSt
       best: Math.max(state.stats.best, score),
       highestTile: Math.max(state.stats.highestTile, maxTileValue),
     },
+  };
+}
+
+/** Revive a game paused on its last chance: +1 rescue and a Bomb charge. */
+function applyRevive(state: EngineState): EngineState {
+  const game = state.game;
+  if (!game.lastChance) return state;
+  return {
+    ...state,
+    game: {
+      ...game,
+      lastChance: false,
+      reviveUsed: true,
+      powers: {
+        ...game.powers,
+        charges: {
+          ...game.powers.charges,
+          bomb: Math.min(POWER_MAX_CHARGES, game.powers.charges.bomb + REVIVE_BOMBS),
+        },
+      },
+      lastMove: null,
+    },
+  };
+}
+
+/** Turn the revive down: the game ends and unspent charges are cashed in. */
+function applyDeclineRevive(state: EngineState): EngineState {
+  const game = state.game;
+  if (!game.lastChance) return state;
+  const settled = settleGameOver(true, game.powers);
+  const score = game.score + settled.bonus;
+  const newRecord = state.stats.best > 0 && score > state.stats.best && !game.celebratedRecord;
+  return {
+    ...state,
+    game: {
+      ...game,
+      lastChance: false,
+      gameOver: true,
+      celebratedRecord: game.celebratedRecord || newRecord,
+      score,
+      powers: settled.powers,
+      powerBonus: settled.bonus,
+      lastMove: null,
+    },
+    stats: { ...state.stats, best: Math.max(state.stats.best, score) },
   };
 }
 
@@ -299,6 +358,10 @@ export function gameReducer(state: EngineState, action: GameAction): EngineState
       return applyMove(state, action.direction);
     case 'power':
       return applyPower(state, action.power, action.cell);
+    case 'revive':
+      return applyRevive(state);
+    case 'declineRevive':
+      return applyDeclineRevive(state);
     case 'undo':
       return applyUndo(state);
     case 'restart':

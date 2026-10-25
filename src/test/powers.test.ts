@@ -7,6 +7,8 @@ import {
   canUsePower,
   emptyPowers,
   energyCost,
+  rescueLimit,
+  rescuesLeft,
   startingPowers,
   totalCharges,
 } from '../game/powers';
@@ -56,6 +58,8 @@ function engine(board: Board, powers: PowerState = oneOfEach, overrides: Partial
       powers,
       rescuesUsed: 0,
       powerBonus: 0,
+      lastChance: false,
+      reviveUsed: false,
       ...overrides,
     },
     stats: { best: 0, highestTile: 0, gamesPlayed: 1 },
@@ -218,10 +222,14 @@ describe('rescue limit and leftover bonus', () => {
   it('a stuck board with every rescue spent is game over and cashes in charges', () => {
     // Upgrading the corner 8 to 16 keeps the board full with no pairs; with the
     // last rescue spent that ends the game although 11 charges remain.
-    const state = engine(stuckBoard, manyCharges(), { rescuesUsed: MAX_RESCUES - 1, score: 1000 });
+    const state = engine(stuckBoard, manyCharges(), {
+      rescuesUsed: rescueLimit(true) - 1,
+      score: 1000,
+      reviveUsed: true,
+    });
     const next = gameReducer(state, { type: 'power', power: 'upgrade', cell: 15 });
     expect(next.game.gameOver).toBe(true);
-    expect(next.game.rescuesUsed).toBe(MAX_RESCUES);
+    expect(next.game.rescuesUsed).toBe(rescueLimit(true));
     expect(next.game.powerBonus).toBe(11 * LEFTOVER_CHARGE_BONUS);
     expect(next.game.score).toBe(1000 + 11 * LEFTOVER_CHARGE_BONUS);
     expect(totalCharges(next.game.powers)).toBe(0);
@@ -244,7 +252,7 @@ describe('rescue limit and leftover bonus', () => {
       2, 4, 2, 4,
       2, 4, 0, 8,
     ];
-    const state = engine(board, manyCharges(), { rescuesUsed: MAX_RESCUES, pendingValue: 4 });
+    const state = engine(board, manyCharges(), { rescuesUsed: rescueLimit(true), pendingValue: 4, reviveUsed: true });
     const next = gameReducer(state, { type: 'move', direction: 'right' });
     expect(next.game.board.slice(12)).toEqual([4, 2, 4, 8]);
     expect(next.game.gameOver).toBe(true);
@@ -287,5 +295,94 @@ describe('rescue limit and leftover bonus', () => {
     data.set(key, JSON.stringify(legacy));
     expect(loadGame(storage).game?.rescuesUsed).toBe(0);
     expect(loadGame(storage).game?.powerBonus).toBe(0);
+  });
+});
+
+describe('last-chance revive', () => {
+  const someCharges = (): PowerState => ({
+    charges: { bomb: 0, upgrade: 2, shuffle: 1, sweep: 0 },
+    energy: 0,
+    earned: 0,
+  });
+  // Upgrading the corner 8 to 16 leaves the board full with no pairs.
+  const lastRescue = () =>
+    gameReducer(engine(stuckBoard, someCharges(), { rescuesUsed: MAX_RESCUES - 1, score: 1000 }), {
+      type: 'power',
+      power: 'upgrade',
+      cell: 15,
+    });
+
+  it('a game that would end pauses on a last chance instead, charges intact', () => {
+    const next = lastRescue();
+    expect(next.game.lastChance).toBe(true);
+    expect(next.game.gameOver).toBe(false);
+    expect(next.game.powerBonus).toBe(0);
+    expect(totalCharges(next.game.powers)).toBe(2);
+    expect(canUsePower(next.game, 'shuffle')).toBe(false);
+    expect(gameReducer(next, { type: 'move', direction: 'left' })).toBe(next);
+  });
+
+  it('a stuck board with no charges also gets the last chance', () => {
+    const board: Board = [
+      2, 4, 2, 4,
+      4, 2, 4, 2,
+      2, 4, 2, 4,
+      2, 4, 0, 8,
+    ];
+    const next = gameReducer(engine(board, emptyPowers(), { pendingValue: 4 }), { type: 'move', direction: 'right' });
+    expect(next.game.lastChance).toBe(true);
+  });
+
+  it('revive grants one extra rescue and a Bomb that frees the board', () => {
+    const revived = gameReducer(lastRescue(), { type: 'revive' });
+    expect(revived.game.lastChance).toBe(false);
+    expect(revived.game.reviveUsed).toBe(true);
+    expect(revived.game.powers.charges.bomb).toBe(1);
+    expect(rescuesLeft(revived.game.rescuesUsed, revived.game.reviveUsed)).toBe(1);
+    const freed = gameReducer(revived, { type: 'power', power: 'bomb', cell: 0 });
+    expect(freed.game.board[0]).toBe(0);
+    expect(freed.game.gameOver).toBe(false);
+  });
+
+  it('declining ends the game and cashes in charges', () => {
+    const over = gameReducer(lastRescue(), { type: 'declineRevive' });
+    expect(over.game.gameOver).toBe(true);
+    expect(over.game.lastChance).toBe(false);
+    expect(over.game.powerBonus).toBe(2 * LEFTOVER_CHARGE_BONUS);
+    expect(over.game.score).toBe(1000 + 2 * LEFTOVER_CHARGE_BONUS);
+    expect(over.stats.best).toBe(over.game.score);
+  });
+
+  it('only one revive per game: the next dead end is game over', () => {
+    const revived = gameReducer(lastRescue(), { type: 'revive' });
+    // Spend the revive's rescue on an upgrade that keeps the board stuck.
+    const next = gameReducer(revived, { type: 'power', power: 'upgrade', cell: 14 });
+    expect(next.game.lastChance).toBe(false);
+    expect(next.game.gameOver).toBe(true);
+  });
+
+  it('revive and decline do nothing outside a last chance', () => {
+    const state = engine([2, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+    expect(gameReducer(state, { type: 'revive' })).toBe(state);
+    expect(gameReducer(state, { type: 'declineRevive' })).toBe(state);
+  });
+
+  it('undo keeps the revive spent', () => {
+    const revived = gameReducer(lastRescue(), { type: 'revive' });
+    const undone = gameReducer(revived, { type: 'undo' });
+    expect(undone.game.reviveUsed).toBe(true);
+  });
+
+  it('last-chance state survives save and load', () => {
+    const data = new Map<string, string>();
+    const storage = {
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => void data.set(k, v),
+      removeItem: (k: string) => void data.delete(k),
+    } as SafeStorage;
+    saveGame(storage, lastRescue());
+    const loaded = loadGame(storage).game;
+    expect(loaded?.lastChance).toBe(true);
+    expect(loaded?.reviveUsed).toBe(false);
   });
 });

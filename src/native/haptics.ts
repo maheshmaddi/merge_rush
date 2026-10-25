@@ -14,7 +14,13 @@ const STYLES: Record<HapticKind, ImpactStyle> = {
   heavy: ImpactStyle.Heavy,
 };
 
+let enabled = true;
+
+export function setHapticsEnabled(value: boolean): void {
+  enabled = value;
+}
+
 export function buzz(kind: HapticKind): void {
-  if (!Capacitor.isNativePlatform()) return;
+  if (!enabled || !Capacitor.isNativePlatform()) return;
   Haptics.impact({ style: STYLES[kind] }).catch(() => undefined);
 }

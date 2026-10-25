@@ -1,5 +1,16 @@
 apply plugin: 'com.android.application'
 
+def googleTestAdMobAppId = 'ca-app-pub-3940256099942544~3347511713'
+def admobAppId = project.findProperty('ADMOB_APP_ID') ?: googleTestAdMobAppId
+
+gradle.taskGraph.whenReady { graph ->
+    def releasing = graph.allTasks.any { it.name.toLowerCase().contains('release') }
+    if (releasing && admobAppId == googleTestAdMobAppId) {
+        logger.warn('WARNING: release build uses the Google TEST AdMob app ID. ' +
+            'Set ADMOB_APP_ID in android/gradle.properties before uploading to Play.')
+    }
+}
+
 android {
     namespace "com.mergerush.app"
     compileSdk rootProject.ext.compileSdkVersion
@@ -7,8 +18,11 @@ android {
         applicationId "com.mergerush.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
-        versionCode 1
-        versionName "1.0"
+        versionCode 2
+        versionName "1.1.0"
+        // AdMob app ID (ca-app-pub-XXXX~YYYY). Set ADMOB_APP_ID in
+        // android/gradle.properties for release; falls back to Google's test app.
+        manifestPlaceholders = [admobAppId: admobAppId]
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
              // Files and dirs to omit from the packaged assets dir, modified to accommodate modern web apps.
