@@ -1,10 +1,20 @@
 import { describe, expect, it } from 'vitest';
 import type { Board, EngineState, GameState, PowerState, Tile } from '../game/types';
 import { gameReducer } from '../game/reducer';
-import { addEnergy, canUsePower, emptyPowers, energyCost, startingPowers } from '../game/powers';
+import { hasAnyMoves } from '../game/gameOver';
+import {
+  addEnergy,
+  canUsePower,
+  emptyPowers,
+  energyCost,
+  startingPowers,
+  totalCharges,
+} from '../game/powers';
 import {
   BOARD_SIZE,
   ENERGY_COST_MAX,
+  LEFTOVER_CHARGE_BONUS,
+  MAX_RESCUES,
   POWER_MAX_CHARGES,
   POWER_START_CHARGES,
 } from '../game/constants';
@@ -44,6 +54,8 @@ function engine(board: Board, powers: PowerState = oneOfEach, overrides: Partial
       celebratedRecord: false,
       lastMove: null,
       powers,
+      rescuesUsed: 0,
+      powerBonus: 0,
       ...overrides,
     },
     stats: { best: 0, highestTile: 0, gamesPlayed: 1 },
@@ -180,5 +192,100 @@ describe('powers', () => {
     delete legacy.game.powers;
     data.set(key, JSON.stringify(legacy));
     expect(loadGame(storage).game?.powers).toEqual(startingPowers());
+  });
+});
+
+describe('rescue limit and leftover bonus', () => {
+  const manyCharges = (): PowerState => ({
+    charges: { bomb: 3, upgrade: 3, shuffle: 3, sweep: 3 },
+    energy: 0,
+    earned: 0,
+  });
+
+  it('a power fired on a stuck board counts as a rescue', () => {
+    const next = gameReducer(engine(stuckBoard, manyCharges()), { type: 'power', power: 'bomb', cell: 0 });
+    expect(next.game.rescuesUsed).toBe(1);
+    expect(next.game.lastMove?.rescue).toBe(true);
+  });
+
+  it('a power fired while moves remain is free', () => {
+    const board: Board = [2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0];
+    const next = gameReducer(engine(board, manyCharges()), { type: 'power', power: 'bomb', cell: 0 });
+    expect(next.game.rescuesUsed).toBe(0);
+    expect(next.game.lastMove?.rescue).toBe(false);
+  });
+
+  it('a stuck board with every rescue spent is game over and cashes in charges', () => {
+    // Upgrading the corner 8 to 16 keeps the board full with no pairs; with the
+    // last rescue spent that ends the game although 11 charges remain.
+    const state = engine(stuckBoard, manyCharges(), { rescuesUsed: MAX_RESCUES - 1, score: 1000 });
+    const next = gameReducer(state, { type: 'power', power: 'upgrade', cell: 15 });
+    expect(next.game.gameOver).toBe(true);
+    expect(next.game.rescuesUsed).toBe(MAX_RESCUES);
+    expect(next.game.powerBonus).toBe(11 * LEFTOVER_CHARGE_BONUS);
+    expect(next.game.score).toBe(1000 + 11 * LEFTOVER_CHARGE_BONUS);
+    expect(totalCharges(next.game.powers)).toBe(0);
+    expect(next.stats.best).toBe(next.game.score);
+  });
+
+  it('no power can fire on a stuck board once rescues are used up', () => {
+    const game = engine(stuckBoard, manyCharges(), { rescuesUsed: MAX_RESCUES }).game;
+    for (const id of ['bomb', 'upgrade', 'shuffle', 'sweep'] as const) {
+      expect(canUsePower(game, id, 0)).toBe(false);
+    }
+  });
+
+  it('a move that ends the game cashes in leftover charges', () => {
+    // Sliding the last row right leaves one hole at (3,0); the spawned 4 fills
+    // it with no equal neighbour, so the board is stuck and rescues are gone.
+    const board: Board = [
+      2, 4, 2, 4,
+      4, 2, 4, 2,
+      2, 4, 2, 4,
+      2, 4, 0, 8,
+    ];
+    const state = engine(board, manyCharges(), { rescuesUsed: MAX_RESCUES, pendingValue: 4 });
+    const next = gameReducer(state, { type: 'move', direction: 'right' });
+    expect(next.game.board.slice(12)).toEqual([4, 2, 4, 8]);
+    expect(next.game.gameOver).toBe(true);
+    expect(next.game.powerBonus).toBe(12 * LEFTOVER_CHARGE_BONUS);
+  });
+
+  it('a stuck board with rescues left is not game over', () => {
+    const board: Board = [
+      2, 4, 2, 4,
+      4, 2, 4, 2,
+      2, 4, 2, 4,
+      2, 4, 0, 8,
+    ];
+    const state = engine(board, manyCharges(), { pendingValue: 4 });
+    const next = gameReducer(state, { type: 'move', direction: 'right' });
+    expect(hasAnyMoves(next.game.board)).toBe(false);
+    expect(next.game.gameOver).toBe(false);
+    expect(next.game.powerBonus).toBe(0);
+  });
+
+  it('undo after a rescue restores the rescue', () => {
+    const used = gameReducer(engine(stuckBoard, manyCharges()), { type: 'power', power: 'bomb', cell: 0 });
+    const undone = gameReducer(used, { type: 'undo' });
+    expect(undone.game.rescuesUsed).toBe(0);
+  });
+
+  it('old saves without rescue fields load with none used', () => {
+    const data = new Map<string, string>();
+    const storage = {
+      getItem: (k: string) => data.get(k) ?? null,
+      setItem: (k: string, v: string) => void data.set(k, v),
+      removeItem: (k: string) => void data.delete(k),
+    } as SafeStorage;
+    saveGame(storage, engine([2, 4, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], manyCharges(), { rescuesUsed: 2 }));
+    expect(loadGame(storage).game?.rescuesUsed).toBe(2);
+    const [key, raw] = [...data.entries()][0];
+    const legacy = JSON.parse(raw);
+    delete legacy.game.rescuesUsed;
+    delete legacy.game.powerBonus;
+    data.set(key, JSON.stringify(legacy));
+    expect(loadGame(storage).game?.rescuesUsed).toBe(0);
+    expect(loadGame(storage).game?.powerBonus).toBe(0);
   });
 });

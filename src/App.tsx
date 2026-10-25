@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { Direction, EngineState, PowerId } from './game/types';
 import { POWER_IDS } from './game/constants';
 import { hasAnyMoves } from './game/gameOver';
-import { TARGETED_POWERS, canUsePower } from './game/powers';
+import { TARGETED_POWERS, canUsePower, rescuesLeft } from './game/powers';
 import { useGameEngine } from './hooks/useGameEngine';
 import { useSwipeInput } from './hooks/useSwipeInput';
 import { useKeyboardInput } from './hooks/useKeyboardInput';
@@ -123,7 +123,7 @@ export default function App({ initialState }: AppProps) {
 
         <div className="board-wrap">
           <Board game={game} boardRef={boardRef} targeting={targeting} onTileClick={pickTile} lite={lite} />
-          <Banner lastMove={game.lastMove} />
+          <Banner lastMove={game.lastMove} rescuesUsed={game.rescuesUsed} />
           {targeting !== null && (
             <div className="board-callout board-callout--target" role="status">
               {POWER_META[targeting].blurb} · tap the power again to cancel
@@ -131,7 +131,9 @@ export default function App({ initialState }: AppProps) {
           )}
           {targeting === null && stuck && (
             <div className="board-callout board-callout--stuck" role="status">
-              No moves left — fire a power to break free!
+              {rescuesLeft(game.rescuesUsed) === 1
+                ? 'No moves — last rescue! Fire a power'
+                : `No moves — ${rescuesLeft(game.rescuesUsed)} rescues left. Fire a power!`}
             </div>
           )}
           {game.gameOver && (
@@ -139,6 +141,8 @@ export default function App({ initialState }: AppProps) {
               score={game.score}
               best={stats.best}
               isNewBest={beatBest}
+              powerBonus={game.powerBonus}
+              rescuesUsed={game.rescuesUsed}
               onPlayAgain={restart}
             />
           )}

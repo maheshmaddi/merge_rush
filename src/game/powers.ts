@@ -10,8 +10,11 @@
  * A power never spawns a tile, never scores, and leaves the combo streak and
  * Rush Mode untouched. Charges are earned by an energy meter that fills with
  * merges (doubled during Rush); each charge earned makes the next one cost
- * more, so powers rescue a run without carrying it. The game only ends when the board is stuck
- * AND no charges remain, so powers can rescue a dead board.
+ * more, so powers rescue a run without carrying it.
+ *
+ * A power fired on a stuck board is a rescue; MAX_RESCUES are allowed per
+ * game. The game ends on a stuck board once charges or rescues run out, and
+ * any unspent charges are cashed in for bonus points.
  */
 
 import type { Board, GameState, PowerId, PowerState, Tile } from './types';
@@ -21,6 +24,8 @@ import {
   ENERGY_COST_BASE,
   ENERGY_COST_MAX,
   ENERGY_COST_STEP,
+  LEFTOVER_CHARGE_BONUS,
+  MAX_RESCUES,
   MAX_TILE_VALUE,
   POWER_IDS,
   POWER_MAX_CHARGES,
@@ -53,9 +58,30 @@ export function totalCharges(powers: PowerState): number {
   return POWER_IDS.reduce((sum, id) => sum + powers.charges[id], 0);
 }
 
-/** Game over = stuck board with nothing left to fire. */
-export function isGameOverWithPowers(board: Board, powers: PowerState): boolean {
-  return !hasAnyMoves(board) && totalCharges(powers) === 0;
+/** Game over = stuck board with no charges, or with every rescue spent. */
+export function isGameOverWithPowers(
+  board: Board,
+  powers: PowerState,
+  rescuesUsed: number,
+): boolean {
+  if (hasAnyMoves(board)) return false;
+  return totalCharges(powers) === 0 || rescuesUsed >= MAX_RESCUES;
+}
+
+export function rescuesLeft(rescuesUsed: number): number {
+  return Math.max(0, MAX_RESCUES - rescuesUsed);
+}
+
+/**
+ * Cashes unspent charges in for points when the game ends, so saving powers
+ * is never wasted and nobody has to burn charges on a dead board.
+ */
+export function cashOutCharges(powers: PowerState): { powers: PowerState; bonus: number } {
+  const bonus = totalCharges(powers) * LEFTOVER_CHARGE_BONUS;
+  return {
+    powers: { ...powers, charges: { bomb: 0, upgrade: 0, shuffle: 0, sweep: 0 } },
+    bonus,
+  };
 }
 
 /**
@@ -106,6 +132,7 @@ function smallestAndLargest(board: Board): { min: number; max: number } {
 /** Whether a power may be fired right now (and on the given cell, if targeted). */
 export function canUsePower(game: GameState, id: PowerId, cell?: number): boolean {
   if (game.gameOver || game.powers.charges[id] <= 0) return false;
+  if (game.rescuesUsed >= MAX_RESCUES && !hasAnyMoves(game.board)) return false;
   const tileCount = game.board.filter((value) => value !== 0).length;
   switch (id) {
     case 'bomb':

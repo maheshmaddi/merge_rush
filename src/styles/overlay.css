@@ -79,3 +79,11 @@
 .overlay .btn {
   min-width: 160px;
 }
+
+.overlay__bonus {
+  margin: 0 0 2px;
+  font-size: 13px;
+  font-weight: 800;
+  color: #9ff1ff;
+  text-shadow: 0 0 10px rgba(56, 225, 255, 0.5);
+}

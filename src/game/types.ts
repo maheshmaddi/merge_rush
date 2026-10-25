@@ -104,6 +104,8 @@ export interface LastMoveInfo {
   powerEarned: PowerId | null;
   /** Set when this state change was a power use rather than a swipe. */
   power: PowerFx | null;
+  /** True when that power was fired on a stuck board (spends a rescue). */
+  rescue: boolean;
 }
 
 /** Everything needed to undo the last successful move. */
@@ -119,6 +121,8 @@ export interface UndoSnapshot {
   gameOver: boolean;
   celebratedRecord: boolean;
   powers: PowerState;
+  rescuesUsed: number;
+  powerBonus: number;
 }
 
 /** Per-game mutable state. */
@@ -139,6 +143,10 @@ export interface GameState {
   canUndo: boolean;
   undoSnapshot: UndoSnapshot | null;
   powers: PowerState;
+  /** Powers fired on a stuck board this game (capped at MAX_RESCUES). */
+  rescuesUsed: number;
+  /** Points awarded at game over for unspent charges; 0 while playing. */
+  powerBonus: number;
   /** Set once the score has beaten the loaded best score in this game. */
   celebratedRecord: boolean;
   /** Transient render hints; not persisted, null when no move happened yet. */

@@ -1,7 +1,7 @@
 import type { CSSProperties } from 'react';
 import type { GameState, PowerId } from '../game/types';
-import { POWER_IDS, POWER_MAX_CHARGES } from '../game/constants';
-import { canUsePower, energyCost } from '../game/powers';
+import { MAX_RESCUES, POWER_IDS, POWER_MAX_CHARGES } from '../game/constants';
+import { canUsePower, energyCost, rescuesLeft } from '../game/powers';
 
 interface PowerMeta {
   name: string;
@@ -89,6 +89,23 @@ export function PowerBar({ game, targeting, onSelect }: PowerBarProps) {
         </span>
         <span className="energy__count">
           {powers.energy}/{cost}
+        </span>
+        <span
+          className="rescues"
+          role="img"
+          aria-label={`${rescuesLeft(game.rescuesUsed)} of ${MAX_RESCUES} rescues left`}
+          title="Rescues: powers fired on a stuck board"
+        >
+          {Array.from({ length: MAX_RESCUES }, (_, i) => (
+            <svg
+              key={i}
+              viewBox="0 0 24 24"
+              aria-hidden="true"
+              className={i < rescuesLeft(game.rescuesUsed) ? 'heart heart--on' : 'heart'}
+            >
+              <path d="M12 21s-7.5-4.6-9.6-9.2C.9 8.4 3 4.5 6.7 4.5c2.2 0 3.6 1.2 4.3 2.4.7-1.2 2.1-2.4 4.3-2.4 3.7 0 5.8 3.9 4.3 7.3C19.5 16.4 12 21 12 21z" />
+            </svg>
+          ))}
         </span>
       </div>
 

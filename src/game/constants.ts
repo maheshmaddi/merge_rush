@@ -33,6 +33,13 @@ export const POWER_MAX_CHARGES = 3;
 export const ENERGY_COST_BASE = 10;
 export const ENERGY_COST_STEP = 20;
 export const ENERGY_COST_MAX = 100;
+/**
+ * A power fired while the board is stuck is a rescue. Only MAX_RESCUES are
+ * allowed per game; after that a stuck board is game over even with charges
+ * left, and every unspent charge is cashed in for LEFTOVER_CHARGE_BONUS points.
+ */
+export const MAX_RESCUES = 3;
+export const LEFTOVER_CHARGE_BONUS = 250;
 /** Upgrade never pushes a tile past this value (save-format ceiling). */
 export const MAX_TILE_VALUE = 1_048_576;
 

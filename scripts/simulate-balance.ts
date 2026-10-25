@@ -12,7 +12,12 @@
  */
 
 import type { Direction, EngineState, PowerId } from '../src/game/types';
-import { BOARD_SIZE, POWER_IDS, POWER_MAX_CHARGES } from '../src/game/constants';
+import {
+  BOARD_SIZE,
+  LEFTOVER_CHARGE_BONUS,
+  POWER_IDS,
+  POWER_MAX_CHARGES,
+} from '../src/game/constants';
 import { createInitialEngineState, gameReducer } from '../src/game/reducer';
 import { moveBoard } from '../src/game/moveBoard';
 import { hasAnyMoves } from '../src/game/gameOver';
@@ -20,6 +25,8 @@ import { canUsePower, emptyPowers } from '../src/game/powers';
 
 const GAMES = Number(process.argv[2] ?? 300);
 const MOVE_CAP = 20_000;
+/** --hoard: never spend powers proactively, only as rescues (worst case for game length). */
+const HOARD = process.argv.includes('--hoard');
 const PRIORITY: Direction[] = ['down', 'left', 'right', 'up'];
 
 function bestDirection(state: EngineState): Direction | null {
@@ -93,6 +100,10 @@ interface GameResult {
   firstEarnMove: number | null;
   earnMoves: number[];
   leftover: number;
+  bonus: number;
+  /** Moves played after the board first got stuck: the "endgame drag". */
+  dragMoves: number;
+  firstStuckMove: number | null;
 }
 
 function play(seed: number, powersOn: boolean): GameResult {
@@ -108,11 +119,15 @@ function play(seed: number, powersOn: boolean): GameResult {
     firstEarnMove: null,
     earnMoves: [],
     leftover: 0,
+    bonus: 0,
+    dragMoves: 0,
+    firstStuckMove: null,
   };
 
   while (!state.game.gameOver && result.moves < MOVE_CAP) {
     if (!hasAnyMoves(state.game.board)) {
       if (!powersOn) break;
+      if (result.firstStuckMove === null) result.firstStuckMove = result.moves;
       // Stuck: rescue in a fixed preference order.
       let fired: EngineState | null = null;
       for (const power of ['bomb', 'sweep', 'upgrade', 'shuffle'] as PowerId[]) {
@@ -127,7 +142,7 @@ function play(seed: number, powersOn: boolean): GameResult {
     }
 
     // Spend a capped power proactively so the next earn is not wasted.
-    if (powersOn) {
+    if (powersOn && !HOARD) {
       const capped = POWER_IDS.find((id) => state.game.powers.charges[id] >= POWER_MAX_CHARGES);
       // Shuffle wrecks a corner strategy, so it is never fired proactively.
       if (capped && capped !== 'shuffle') {
@@ -153,7 +168,10 @@ function play(seed: number, powersOn: boolean): GameResult {
 
   result.score = state.game.score;
   result.maxTile = Math.max(...state.game.board);
-  result.leftover = POWER_IDS.reduce((s, id) => s + state.game.powers.charges[id], 0);
+  // Unspent charges are cashed in at game over, so read them off the bonus.
+  result.bonus = state.game.powerBonus;
+  result.leftover = state.game.powerBonus / LEFTOVER_CHARGE_BONUS;
+  result.dragMoves = result.firstStuckMove === null ? 0 : result.moves - result.firstStuckMove;
   return result;
 }
 
@@ -193,10 +211,13 @@ function report(label: string, results: GameResult[]) {
     `charges earned median ${median(results.map((r) => r.earned))}  used ${median(results.map((r) => r.used))}  rescues ${median(results.map((r) => r.rescues))}  leftover ${median(results.map((r) => r.leftover))}`,
   );
   console.log(
+    `endgame drag (moves after first stuck) median ${median(results.map((r) => r.dragMoves))}  p90 ${pct(results.map((r) => r.dragMoves), 0.9)}  bonus median ${median(results.map((r) => r.bonus))} (${Math.round((100 * median(results.map((r) => r.bonus))) / median(results.map((r) => r.score)))}% of score)`,
+  );
+  console.log(
     `first earn at move ${median(firstEarn)}  gap early ${median(earlyGaps)}  gap late ${median(lateGaps)}`,
   );
 }
 
 const seeds = Array.from({ length: GAMES }, (_, i) => 1000 + i * 7919);
 if (!process.argv.includes('--on-only')) report('powers OFF', seeds.map((s) => play(s, false)));
-report('powers ON', seeds.map((s) => play(s, true)));
+report(HOARD ? 'powers ON (hoarding player)' : 'powers ON', seeds.map((s) => play(s, true)));

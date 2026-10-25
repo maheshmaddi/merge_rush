@@ -28,6 +28,45 @@ The game installs as a PWA in production builds (`manifest.webmanifest`,
 icons, and a cache-first service worker registered by `src/main.tsx`), but it
 is fully playable without installing anything.
 
+## Android app (APK / AAB)
+
+The game ships as an Android app through [Capacitor](https://capacitorjs.com/)
+(project in `android/`, config in `capacitor.config.ts`). It targets Android 16
+(API 36) and runs on Android 8.0+ (API 26), portrait only.
+
+Requirements: JDK 17 and the Android SDK (platform 36). Set `ANDROID_HOME`
+(or create `android/local.properties` with `sdk.dir=...`).
+
+**Rebuild the APK and the Play Store bundle** after any game change - from the
+project root:
+
+```bash
+npm run build && npx cap sync android && cd android && ./gradlew assembleRelease bundleRelease
+```
+
+On Windows Command Prompt or PowerShell use `gradlew.bat` instead of
+`./gradlew`. The outputs are:
+
+| File | Use |
+| ---- | --- |
+| `android/app/build/outputs/apk/release/app-release.apk` | Install directly on a phone (sideload) |
+| `android/app/build/outputs/bundle/release/app-release.aab` | Upload to Google Play |
+
+To install the APK on a phone connected over USB (with USB debugging on):
+
+```bash
+adb install -r android/app/build/outputs/apk/release/app-release.apk
+```
+
+**Before each Play upload,** raise `versionCode` (and `versionName`) in
+`android/app/build.gradle`; Play rejects a bundle whose `versionCode` it has
+already seen.
+
+**Signing.** Release builds are signed with `android/merge-rush-release.jks`,
+configured in `android/keystore.properties`. Both are git-ignored. Back them
+up somewhere safe: every future update must be signed with the same key. If
+`keystore.properties` is missing, Gradle produces an unsigned release build.
+
 ## Testing and checks
 
 ```bash
@@ -102,17 +141,37 @@ Powers never spawn a tile, score points, or touch the combo / Rush state.
 goes to the power you hold fewest of, so Shuffle and Sweep are introduced by
 the first two earns. Values live in `src/game/constants.ts`.
 
+**Rescues.** A power fired while the board is stuck counts as a *rescue*.
+Each game allows **3 rescues** (the hearts beside the energy meter); powers
+fired while you can still move are always free. When the board is stuck and
+the rescues are used up, the game ends even with charges left, and every
+unspent charge is cashed in for **+250 points** (shown on the game-over
+panel). Saving powers is never wasted, and nobody has to burn charges on a
+dead board just to reach game over.
+
 The numbers were tuned with a bot that plays seeded games through the real
-reducer (`npx vite-node scripts/simulate-balance.ts [games]`). Over 200 games
-the bot lasts a median 241 moves without powers and ~445 with them, earns ~8
-charges per game (first at move ~12, then every ~45 moves early and ~75 late),
-and reaches 1024 in ~7% of games versus 0% without powers.
+reducer (`npx vite-node scripts/simulate-balance.ts [games] [--hoard]`;
+`--hoard` models a player who only fires powers as rescues). Over 200 games:
+
+| Rescue limit | Median moves | Endgame drag¹ | Leftover bonus |
+| ------------ | ------------ | ------------- | -------------- |
+| no powers    | 241          | –             | –              |
+| unlimited    | 445          | 187           | –              |
+| 2            | 312          | 38            | 11% of score   |
+| **3**        | **335**      | **78**        | **8% of score** |
+| 4            | 358          | 109           | 6% of score    |
+
+¹ Moves played after the board first got stuck. With unlimited rescues,
+almost half the game was spent being dragged back from a dead board; 3
+rescues keeps the comeback drama without the endless tail. Charges arrive
+first at move ~12, then every ~40 moves early and ~75 late.
 
 ### Game over
 
-The game ends when the board is full, no two horizontally/vertically adjacent
-tiles are equal, **and** no power charges remain. A stuck board with charges
-left shows a prompt to fire a power instead.
+The board is stuck when it is full and no two horizontally/vertically adjacent
+tiles are equal. A stuck board ends the game once no charges remain **or**
+all 3 rescues are spent; otherwise it shows how many rescues are left and
+prompts you to fire a power.
 
 ### Undo and restart
 

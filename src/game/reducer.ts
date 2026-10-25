@@ -14,6 +14,7 @@ import type {
   LastMoveInfo,
   MergeEvent,
   PowerId,
+  PowerState,
   Tile,
   UndoSnapshot,
 } from './types';
@@ -26,7 +27,14 @@ import { createNewGame } from './initializeGame';
 import { moveBoard } from './moveBoard';
 import { scoreForMerges } from './calculateScore';
 import { applyMoveToCombo } from './rushMode';
-import { addEnergy, applyPowerToBoard, canUsePower, isGameOverWithPowers } from './powers';
+import { hasAnyMoves } from './gameOver';
+import {
+  addEnergy,
+  applyPowerToBoard,
+  canUsePower,
+  cashOutCharges,
+  isGameOverWithPowers,
+} from './powers';
 import { drawSpawnValue, pickEmptyCell } from './random';
 
 export type GameAction =
@@ -59,7 +67,14 @@ function snapshotForUndo(game: GameState): UndoSnapshot {
     gameOver: game.gameOver,
     celebratedRecord: game.celebratedRecord,
     powers: game.powers,
+    rescuesUsed: game.rescuesUsed,
+    powerBonus: game.powerBonus,
   };
+}
+
+/** On the move that ends the game, unspent charges become bonus points. */
+function settleGameOver(gameOver: boolean, powers: PowerState): { powers: PowerState; bonus: number } {
+  return gameOver ? cashOutCharges(powers) : { powers, bonus: 0 };
 }
 
 function applyMove(state: EngineState, direction: Direction): EngineState {
@@ -132,8 +147,9 @@ function applyMove(state: EngineState, direction: Direction): EngineState {
     outcome.merges.length * (game.rush.active ? 2 : 1),
   );
 
-  const newScore = game.score + moveScore.total;
-  const gameOver = isGameOverWithPowers(boardWithSpawn, energy.powers);
+  const gameOver = isGameOverWithPowers(boardWithSpawn, energy.powers, game.rescuesUsed);
+  const settled = settleGameOver(gameOver, energy.powers);
+  const newScore = game.score + moveScore.total + settled.bonus;
 
   const previousBest = state.stats.best;
   const newBest = Math.max(previousBest, newScore);
@@ -152,6 +168,7 @@ function applyMove(state: EngineState, direction: Direction): EngineState {
     rushExpired: !combo.rush.active && game.rush.active,
     powerEarned: energy.earned,
     power: null,
+    rescue: false,
   };
 
   return {
@@ -167,7 +184,9 @@ function applyMove(state: EngineState, direction: Direction): EngineState {
       gameOver,
       canUndo: game.canUndo && UNDOS_PER_GAME > 0,
       undoSnapshot: game.canUndo ? snapshotForUndo(game) : null,
-      powers: energy.powers,
+      powers: settled.powers,
+      rescuesUsed: game.rescuesUsed,
+      powerBonus: settled.bonus,
       celebratedRecord: game.celebratedRecord || newRecord,
       lastMove,
     },
@@ -199,6 +218,8 @@ function applyUndo(state: EngineState): EngineState {
       canUndo: false,
       undoSnapshot: null,
       powers: snapshot.powers,
+      rescuesUsed: snapshot.rescuesUsed,
+      powerBonus: snapshot.powerBonus,
       celebratedRecord: snapshot.celebratedRecord,
       lastMove: null,
     },
@@ -209,11 +230,17 @@ function applyPower(state: EngineState, power: PowerId, cell?: number): EngineSt
   const game = state.game;
   if (!canUsePower(game, power, cell)) return state;
 
+  const rescue = !hasAnyMoves(game.board);
+  const rescuesUsed = game.rescuesUsed + (rescue ? 1 : 0);
   const result = applyPowerToBoard(game, power, cell);
-  const powers = {
+  const spent = {
     ...game.powers,
     charges: { ...game.powers.charges, [power]: game.powers.charges[power] - 1 },
   };
+  const gameOver = isGameOverWithPowers(result.board, spent, rescuesUsed);
+  const settled = settleGameOver(gameOver, spent);
+  const score = game.score + settled.bonus;
+  const newRecord = state.stats.best > 0 && score > state.stats.best && !game.celebratedRecord;
   const maxTileValue = result.tiles.reduce((max, tile) => Math.max(max, tile.value), 0);
 
   const lastMove: LastMoveInfo = {
@@ -222,11 +249,12 @@ function applyPower(state: EngineState, power: PowerId, cell?: number): EngineSt
     spawnedTileId: -1,
     score: { base: 0, chainBonus: 0, multiplier: 1, total: 0 },
     mergeCells: [],
-    newRecord: false,
+    newRecord,
     rushActivated: false,
     rushExpired: false,
     powerEarned: null,
     power: { id: power, cells: result.cells },
+    rescue,
   };
 
   return {
@@ -236,13 +264,21 @@ function applyPower(state: EngineState, power: PowerId, cell?: number): EngineSt
       board: result.board,
       tiles: result.tiles,
       rngState: result.rngState,
-      powers,
-      gameOver: isGameOverWithPowers(result.board, powers),
+      score,
+      powers: settled.powers,
+      rescuesUsed,
+      powerBonus: settled.bonus,
+      gameOver,
+      celebratedRecord: game.celebratedRecord || newRecord,
       canUndo: game.canUndo && UNDOS_PER_GAME > 0,
       undoSnapshot: game.canUndo ? snapshotForUndo(game) : null,
       lastMove,
     },
-    stats: { ...state.stats, highestTile: Math.max(state.stats.highestTile, maxTileValue) },
+    stats: {
+      ...state.stats,
+      best: Math.max(state.stats.best, score),
+      highestTile: Math.max(state.stats.highestTile, maxTileValue),
+    },
   };
 }
 
