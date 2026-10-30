@@ -55,8 +55,12 @@ class Leaderboards {
 
   async submit(kind: BoardKind, score: number): Promise<void> {
     const id = BOARD_IDS[kind];
-    if (id === null || score <= 0 || !(await this.isAvailable()) || !this.signedIn) return;
+    if (id === null || score <= 0 || !(await this.isAvailable())) return;
     try {
+      // Sign-in can fail at launch (offline, credentials still propagating):
+      // try again whenever there is a score to post.
+      if (!this.signedIn) this.signedIn = (await plugin.signIn()).signedIn;
+      if (!this.signedIn) return;
       await plugin.submitScore({ leaderboardId: id, score: Math.floor(score) });
     } catch {
       // Offline or signed out: the score simply is not posted.

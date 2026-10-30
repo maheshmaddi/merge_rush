@@ -201,6 +201,23 @@ export default function App({ initialState }: AppProps) {
     void leaderboards.submit('allTime', game.score);
     if (dailyActive) void leaderboards.submit('daily', game.score);
   }, [game.gameOver, game.score, dailyActive, initialState]);
+
+  // Most players leave mid-game rather than playing to the end, so also post
+  // the running score whenever the app goes to the background. Google keeps
+  // only each player's best, so repeats are harmless.
+  const liveRef = useRef({ score: game.score, daily: dailyActive });
+  liveRef.current = { score: game.score, daily: dailyActive };
+  useEffect(() => {
+    if (initialState !== undefined) return;
+    const onHide = () => {
+      if (document.visibilityState !== 'hidden') return;
+      const { score, daily } = liveRef.current;
+      void leaderboards.submit('allTime', score);
+      if (daily) void leaderboards.submit('daily', score);
+    };
+    document.addEventListener('visibilitychange', onHide);
+    return () => document.removeEventListener('visibilitychange', onHide);
+  }, [initialState]);
   const [shareNote, setShareNote] = useState('');
   const [exitHint, setExitHint] = useState(false);
   const onShare = () => {
